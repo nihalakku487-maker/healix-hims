@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background: clean white */
+    --background: 0 0% 100%;
+    --foreground: 160 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 160 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 10% 10%;
+
+    /* Primary: forest green from the Stitch hero */
+    --primary: 158 54% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: light greenish tint */
+    --secondary: 160 20% 96%;
+    --secondary-foreground: 160 10% 20%;
+
+    --muted: 160 15% 95%;
+    --muted-foreground: 160 8% 48%;
+
+    /* Accent: teal/emerald from the "simplified" highlight */
+    --accent: 160 70% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 15% 88%;
+    --input: 160 15% 88%;
+    --ring: 158 54% 20%;
+
+    --radius: 0.75rem;
+
+    --success: 158 60% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --sidebar-background: 160 10% 10%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-primary: 160 70% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 15% 18%;
+    --sidebar-accent-foreground: 0 0% 92%;
+    --sidebar-border: 160 10% 16%;
+    --sidebar-ring: 160 70% 40%;
+  }
+
+  .dark {
+    --background: 160 15% 6%;
+    --foreground: 160 10% 92%;
+
+    --card: 160 12% 8%;
+    --card-foreground: 160 10% 92%;
+
+    --popover: 160 12% 8%;
+    --popover-foreground: 160 10% 92%;
+
+    --primary: 160 70% 44%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 160 10% 14%;
+    --secondary-foreground: 160 10% 92%;
+
+    --muted: 160 10% 14%;
+    --muted-foreground: 160 8% 58%;
+
+    --accent: 160 70% 44%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 160 10% 16%;
+    --input: 160 10% 16%;
+    --ring: 160 70% 44%;
+
+    --sidebar-background: 160 15% 6%;
+    --sidebar-foreground: 160 10% 92%;
+    --sidebar-primary: 160 70% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 160 12% 12%;
+    --sidebar-accent-foreground: 160 10% 92%;
+    --sidebar-border: 160 10% 14%;
+    --sidebar-ring: 160 70% 44%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  }
+}
+
+/* Stitch Design Custom Classes */
+@layer utilities {
+  /* Hero dark forest green bg — animated gradient */
+  .mediq-hero-bg {
+    background: linear-gradient(135deg, #0D2B20 0%, #1B4332 50%, #144D35 100%);
+    background-size: 300% 300%;
+    animation: heroGradientShift 12s ease infinite;
+  }
+
+  @keyframes heroGradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Teal/emerald accent used for highlighted text */
+  .mediq-accent {
+    color: #2DD4BF;
+  }
+
+  /* Subtle glassmorphism card */
+  .mediq-glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  /* Floating live status card */
+  .mediq-status-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Expertise label */
+  .mediq-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Dark teal CTA card */
+  .mediq-cta-card {
+    background: linear-gradient(135deg, #134E3A 0%, #0D3B2C 100%);
+  }
+
+  .mediq-nav-btn {
+    background: #1B4332;
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 9999px;
+    transition: background 0.2s;
+  }
+
+  .mediq-nav-btn:hover {
+    background: #2D6A4F;
+  }
+}
