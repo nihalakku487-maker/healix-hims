@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion } from "framer-motion";
-import { Activity, Stethoscope, Building, Lock, ArrowLeft } from "lucide-react";
+import { Stethoscope, Building, Lock, ArrowLeft } from "lucide-react";
+import { MediQMark } from "@/components/MediQLogo";
 import { toast } from "sonner";
 
 // All staff credentials
@@ -68,8 +69,8 @@ export default function Login() {
         >
            <Card className="p-8 border border-white/60 bg-white/70 backdrop-blur-xl shadow-2xl rounded-[2.5rem]">
              <div className="flex flex-col items-center mb-8">
-               <div className="h-16 w-16 text-white rounded-[1.5rem] bg-teal-600 shadow-lg shadow-teal-200 flex items-center justify-center mb-4">
-                 <Activity strokeWidth={2.5} size={32} />
+               <div className="mb-4">
+                 <MediQMark size={64} />
                </div>
                <h1 className="text-2xl font-black text-slate-800 tracking-tight">Provider Portal</h1>
                <p className="text-slate-500 font-medium text-sm text-center mt-2">Secure access for Doctors and Receptionists.</p>
