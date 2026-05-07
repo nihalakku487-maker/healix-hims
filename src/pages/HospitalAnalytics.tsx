@@ -66,7 +66,7 @@ export default function HospitalAnalytics() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(getTodayISTDateString());
   const today = selectedDate;
-  const sasthaDoctors = MOCK_DOCTORS.filter((d) => d.hospitalId === "sastha");
+  const jeevodayaDoctors = MOCK_DOCTORS.filter((d) => d.hospitalId === "jeevodaya");
 
   const fetchAll = async () => {
     setLoading(true);
@@ -118,7 +118,7 @@ export default function HospitalAnalytics() {
   const maxBinCount = Math.max(...hourlyBins.map((b) => b.count), 1);
 
   // Per-doctor stats
-  const doctorStats = sasthaDoctors.map((doc) => {
+  const doctorStats = jeevodayaDoctors.map((doc) => {
     const db = todayBookings.filter((b) => b.doctor_id === doc.id);
     return {
       doc,
@@ -165,7 +165,7 @@ export default function HospitalAnalytics() {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Hospital Analytics</h1>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sastha Wellness Center</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Jeevodaya Mission Hospital</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -422,7 +422,7 @@ export default function HospitalAnalytics() {
                   {todayBookings
                     .filter((b) => b.status === "no-show")
                     .map((b) => {
-                      const doc = sasthaDoctors.find((d) => d.id === b.doctor_id);
+                      const doc = jeevodayaDoctors.find((d) => d.id === b.doctor_id);
                       return (
                         <div key={b.id} className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 border border-red-100">
                           <div className="flex items-center gap-3">

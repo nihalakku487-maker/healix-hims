@@ -95,7 +95,7 @@ const ClinicDashboard = () => {
     else toast.success('Wait time updated!');
   };
 
-  const sasthaDoctors = MOCK_DOCTORS.filter(d => d.hospitalId === "sastha");
+  const jeevodayaDoctors = MOCK_DOCTORS.filter(d => d.hospitalId === "jeevodaya");
 
   // ── Must be above ALL early returns (Rules of Hooks) ──────────────────────
   const safeBookingsList = Array.isArray(bookings) ? bookings : [];
@@ -125,7 +125,7 @@ const ClinicDashboard = () => {
     }
     setAdding(true);
 
-    const doc = sasthaDoctors.find(d => d.id === walkInDoctor);
+    const doc = jeevodayaDoctors.find(d => d.id === walkInDoctor);
 
     const { data: tokenData } = await supabase.rpc('get_next_token_for_doctor', {
       p_doctor_id: walkInDoctor,
@@ -143,7 +143,7 @@ const ClinicDashboard = () => {
       token_number: tokenData,
       booking_date: getTodayISTDateString(),
       doctor_id: walkInDoctor,
-      hospital_id: 'sastha',
+      hospital_id: 'jeevodaya',
       department_id: doc?.departmentId,
       status: 'waiting'
     });
@@ -214,7 +214,7 @@ const ClinicDashboard = () => {
               <Activity strokeWidth={2.5} size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Sastha Wellness</h1>
+              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Jeevodaya Mission Hospital</h1>
               <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Front Desk Check-In</p>
             </div>
           </div>
@@ -241,7 +241,7 @@ const ClinicDashboard = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Doctors</SelectItem>
-              {sasthaDoctors.map(d => (
+              {jeevodayaDoctors.map(d => (
                 <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
               ))}
             </SelectContent>
@@ -315,7 +315,7 @@ const ClinicDashboard = () => {
                   <SelectValue placeholder="Select Doctor" />
                 </SelectTrigger>
                 <SelectContent>
-                  {sasthaDoctors.map(d => <SelectItem key={d.id} value={d.id}>{d.name} ({d.specialty})</SelectItem>)}
+                  {jeevodayaDoctors.map(d => <SelectItem key={d.id} value={d.id}>{d.name} ({d.specialty})</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input
@@ -387,7 +387,7 @@ const ClinicDashboard = () => {
             <p className="text-lg font-extrabold text-slate-800 tracking-tight">Live Doctor Queues</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-             {sasthaDoctors.map(doc => {
+             {jeevodayaDoctors.map(doc => {
                  let dBookings = bookings.filter(b => b.doctor_id === doc.id);
                  let w = dBookings.filter(b => b.status === 'waiting').length;
                  let i = dBookings.filter(b => b.status === 'in-progress').length;

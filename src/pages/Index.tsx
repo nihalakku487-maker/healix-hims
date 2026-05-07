@@ -10,7 +10,7 @@ import MediQLogo, { MediQMark } from '@/components/MediQLogo';
 import PatientNav from '@/components/PatientNav';
 import { useAuth } from '@/contexts/AuthContext';
 
-const HOSPITAL_ID = "sastha";
+const HOSPITAL_ID = "jeevodaya";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -80,7 +80,7 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
             >
-              <p className="mediq-label text-emerald-400 mb-4 tracking-widest text-xs sm:text-sm">SASTHA WELLNESS CENTER</p>
+              <p className="mediq-label text-emerald-400 mb-4 tracking-widest text-xs sm:text-sm">JEEVODAYA MISSION HOSPITAL</p>
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] text-white mb-4 sm:mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Healthcare,{' '}
                 <span className="text-emerald-400">simplified</span>{' '}
@@ -477,7 +477,7 @@ const Index = () => {
               <div className="rounded-3xl overflow-hidden shadow-2xl" style={{ height: 'clamp(280px, 50vw, 480px)' }}>
                 <img
                   src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop"
-                  alt="Sastha Wellness Center"
+                  alt="Jeevodaya Mission Hospital"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />

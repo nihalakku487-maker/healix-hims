@@ -12,10 +12,10 @@ import { toast } from "sonner";
 
 // All staff credentials
 const STAFF_CREDS: Record<string, { role: "doctor" | "receptionist"; password: string; doctorId?: string }> = {
-  "dr.ananya":  { role: "doctor",       password: "sastha123", doctorId: "doc1" },
-  "dr.ramesh":  { role: "doctor",       password: "sastha123", doctorId: "doc2" },
-  "dr.arjun":   { role: "doctor",       password: "sastha123", doctorId: "doc3" },
-  "reception":  { role: "receptionist", password: "sastha123" },
+  "dr.ananya":  { role: "doctor",       password: "jeevodaya123", doctorId: "doc1" },
+  "dr.ramesh":  { role: "doctor",       password: "jeevodaya123", doctorId: "doc2" },
+  "dr.arjun":   { role: "doctor",       password: "jeevodaya123", doctorId: "doc3" },
+  "reception":  { role: "receptionist", password: "jeevodaya123" },
 };
 
 export default function Login() {
@@ -43,8 +43,8 @@ export default function Login() {
     } else {
       toast.error("Incorrect Credentials", {
         description: role === "doctor"
-          ? "Doctors: dr.ananya / dr.ramesh / dr.arjun — all use password: sastha123"
-          : "Receptionist: reception / sastha123"
+          ? "Doctors: dr.ananya / dr.ramesh / dr.arjun — all use password: jeevodaya123"
+          : "Receptionist: reception / jeevodaya123"
       });
     }
   };

@@ -139,7 +139,7 @@ export default function BookSlot() {
         booking_date: payloadDate,
         time_slot: payloadTime,
         doctor_id: doctor.id,
-        hospital_id: 'sastha',
+        hospital_id: 'jeevodaya',
         token_number: tokenNumber,
         status: 'waiting',
         ...(user?.email ? { user_email: user.email, user_name: profile?.full_name ?? name } : {}),

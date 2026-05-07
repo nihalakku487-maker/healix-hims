@@ -66,8 +66,8 @@ export const MOCK_DEPARTMENTS: Department[] = [
 
 export const MOCK_HOSPITALS: Hospital[] = [
   {
-    id: "sastha",
-    name: "Sastha Wellness Center",
+    id: "jeevodaya",
+    name: "Jeevodaya Mission Hospital",
     address: "10/1163, Ottupara, Kumaranellur, Wadakkanchery, Thrissur, Kerala, 680590",
     image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop",
     rating: 4.9,
@@ -100,7 +100,7 @@ export const MOCK_DOCTORS: Doctor[] = [
     availability: "Mon, Wed, Fri",
     image: "/images/doc1.png",
     about: "Dr. Ananya is a highly skilled dermatologist specializing in skin rejuvenation and clinical dermatology.",
-    hospitalId: "sastha",
+    hospitalId: "jeevodaya",
     departmentId: "derm",
     queueStatus: { currentToken: 1, estimatedWaitTime: 5, totalInQueue: 1 }
   },
@@ -114,7 +114,7 @@ export const MOCK_DOCTORS: Doctor[] = [
     availability: "Mon-Sat",
     image: "/images/doc2.png",
     about: "Dr. Menon is a veteran general surgeon with decades of experience in complex abdominal procedures.",
-    hospitalId: "sastha",
+    hospitalId: "jeevodaya",
     departmentId: "gensurg",
     queueStatus: { currentToken: 1, estimatedWaitTime: 10, totalInQueue: 1 }
   },
@@ -128,7 +128,7 @@ export const MOCK_DOCTORS: Doctor[] = [
     availability: "Daily",
     image: "/images/doc3.png",
     about: "Friendly and highly approachable, Dr. Arjun focuses on foundational pediatric care and family medicine.",
-    hospitalId: "sastha",
+    hospitalId: "jeevodaya",
     departmentId: "genchk",
     queueStatus: { currentToken: 1, estimatedWaitTime: 8, totalInQueue: 1 }
   }
