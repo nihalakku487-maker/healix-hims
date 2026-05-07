@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,11 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { getTodayISTDateString, getNowIST } from "@/lib/ist";
 import { isDoctorAvailableNow } from "@/lib/availability";
+import { useAuth } from "@/contexts/AuthContext";
+import { useDoctorSlots } from "@/hooks/useDoctorSlots";
+
+const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+const SB_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 function getISTTimeString(): string {
   const ist = getNowIST();
@@ -40,10 +45,18 @@ export default function BookSlot() {
   const [waitMultiplier, setWaitMultiplier] = useState(5);
   
   const [isAvail, setIsAvail] = useState<boolean>(true);
-  const [startTime, setStartTime] = useState<string>("09:00");
-  const [endTime, setEndTime] = useState<string>("18:00");
-  const [slotMinutes, setSlotMinutes] = useState<number>(30);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
+
+  const istNow = getNowIST();
+  const currentMinsIST = (istNow.getHours() * 60) + istNow.getMinutes();
+  const { slots: doctorSlots, loading: slotsLoading } = useDoctorSlots({ 
+    doctorId: doctor?.id, 
+    date: getTodayISTDateString(), 
+    currentMinsIST 
+  });
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  const { user, profile } = useAuth();
+  const realtimeSubRef = React.useRef<any>(null);
 
   useEffect(() => {
     if (!doctor) return;
@@ -60,10 +73,8 @@ export default function BookSlot() {
       const { data } = await supabase.from('doctor_settings').select('*').eq('doctor_id', doctor.id).maybeSingle();
       if (data) {
         if (data.avg_wait_minutes) setWaitMultiplier(data.avg_wait_minutes);
-        if (data.start_time) setStartTime(data.start_time);
-        if (data.end_time) setEndTime(data.end_time);
-        if (data.slot_minutes !== null) setSlotMinutes(data.slot_minutes);
-        setIsAvail(isDoctorAvailableNow(data.is_available ?? true, data.start_time || '09:00', data.end_time || '18:00'));
+        setIsAvail(data.is_available ?? true); // Only check global presence toggle, disregard legacy start/end time
+        setIsAvail(data.is_available ?? true);
       }
     };
     fetchCount();
@@ -74,10 +85,7 @@ export default function BookSlot() {
           const row = payload.new as any;
           if (row) {
              if (row.avg_wait_minutes) setWaitMultiplier(row.avg_wait_minutes);
-             if (row.start_time) setStartTime(row.start_time);
-             if (row.end_time) setEndTime(row.end_time);
-             if (row.slot_minutes !== null) setSlotMinutes(row.slot_minutes);
-             setIsAvail(isDoctorAvailableNow(row.is_available ?? true, row.start_time || '09:00', row.end_time || '18:00'));
+             if (row.is_available !== undefined) setIsAvail(row.is_available);
           }
       })
       .subscribe();
@@ -95,6 +103,8 @@ export default function BookSlot() {
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
+    setBookingError(null);
+
     if (!isAvail) {
       toast.error("Booking failed", { description: "Doctor is currently offline or outside of working hours." });
       return;
@@ -107,121 +117,133 @@ export default function BookSlot() {
     
     setIsSubmitting(true);
 
-    // Calculate next token by counting existing bookings for this doctor today
-    const { count, error: countError } = await supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('doctor_id', doctor.id)
-      .eq('booking_date', getTodayISTDateString());
+    // Calculate next token
+    const tokenNumber = (liveQueueCount ?? 0) + 1;
 
-    if (countError) {
-      // Log full error for debugging
-      console.error("Queue count error:", countError);
-      toast.error(`DB Error: ${countError.message}`);
-      setIsSubmitting(false);
-      return;
+    // ── PAUSE REALTIME to release auth lock before DB insert (non-blocking) ──
+    if (realtimeSubRef.current) {
+      supabase.removeChannel(realtimeSubRef.current);
+      realtimeSubRef.current = null;
     }
 
-    const tokenNumber = (count ?? 0) + 1;
-
-    // Insert into Supabase
-    const bookingPayload: any = {
-      patient_name: name,
-      phone: phone,
-      booking_date: getTodayISTDateString(),
-      time_slot: selectedSlot,
-      doctor_id: doctor.id,
-      hospital_id: 'sastha',
-      token_number: tokenNumber,
-      status: 'waiting'
-    };
-    // Only include department_id if the doctor has one (column may not exist in all DB setups)
-    if (doctor.departmentId) {
-      bookingPayload.department_id = doctor.departmentId;
-    }
-
-    const { data: insertData, error: insertError } = await supabase.from('bookings').insert(bookingPayload).select();
-
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      toast.error(`Failed to book: ${insertError.message}`);
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Handle patient profile & file upload
-    if (file) {
-      toast.info("Uploading medical records...");
+    // ── Use direct fetch instead of supabase-js to bypass auth lock ──
+    let insertData: any[] | null = null;
+    try {
+      toast.success("Starting booking process...");
+      const payloadDate = getTodayISTDateString();
+      const payloadTime = typeof selectedSlot === 'string' ? selectedSlot : (selectedSlot as any).label;
       
-      try {
-        // 1. Get or create patient profile
-        let patientId = "";
-        const { data: existingPatients, error: searchError } = await supabase
-          .from('patients')
-          .select('id')
-          .eq('phone', phone);
-          
-        if (existingPatients && existingPatients.length > 0) {
-          patientId = existingPatients[0].id;
-          // Optionally update their name
-          await supabase.from('patients').update({ name_last_seen: name }).eq('id', patientId);
-        } else {
-          // Create new patient
-          const { data: newPatient, error: createError } = await supabase
-             .from('patients')
-             .insert({ phone, name_last_seen: name })
-             .select()
-             .single();
-          if (newPatient) {
-             patientId = newPatient.id;
-          }
-        }
-        
-        if (patientId) {
-          // 2. Upload file to Supabase Storage
-          const fileExt = file.name.split('.').pop() || 'pdf';
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const filePath = `${patientId}/${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('patient_records')
-            .upload(filePath, file);
-            
-          if (uploadError) {
-             console.error("Storage upload error:", uploadError);
-             toast.error("File upload failed", { description: uploadError.message });
-          } else {
-             // Get public URL
-             const { data: urlData } = supabase.storage
-                .from('patient_records')
-                .getPublicUrl(filePath);
-                
-             // 3. Link file to patient and booking
-             if (insertData && insertData[0]) {
-               const { error: dbError } = await supabase.from('patient_files').insert({
-                 patient_id: patientId,
-                 file_name: file.name,
-                 file_path: urlData.publicUrl,
-                 mime_type: file.type || 'application/pdf'
-               });
-               if (dbError) {
-                  console.error("Patient files DB error:", dbError);
-               } else {
-                  console.log("File linked successfully");
-               }
-             }
-          }
-        }
-      } catch (err) {
-        console.error("Upload process error", err);
+      const bookingPayload: any = {
+        patient_name: name,
+        phone: phone,
+        booking_date: payloadDate,
+        time_slot: payloadTime,
+        doctor_id: doctor.id,
+        hospital_id: 'sastha',
+        token_number: tokenNumber,
+        status: 'waiting',
+        ...(user?.email ? { user_email: user.email, user_name: profile?.full_name ?? name } : {}),
+      };
+      if (doctor.departmentId) {
+        bookingPayload.department_id = doctor.departmentId;
       }
+
+      toast.success("Sending to database...");
+      const res = await fetch(`${SB_URL}/rest/v1/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SB_ANON_KEY,
+          'Authorization': `Bearer ${SB_ANON_KEY}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(bookingPayload),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({ message: res.statusText }));
+        const msg = errBody?.message || errBody?.details || res.statusText;
+        console.error('Booking fetch error:', errBody);
+        toast.error(`Booking failed: ${msg}`);
+        setBookingError(`Failed to book: ${msg}`);
+        setIsSubmitting(false);
+        return;
+      }
+      insertData = await res.json();
+    } catch (err: any) {
+      console.error('Booking fetch exception:', err);
+      toast.error(`Network error: ${err?.message ?? 'Unknown error'}`);
+      setBookingError(`Application error: ${err?.message ?? 'Unknown error'}`);
+      setIsSubmitting(false);
+      return;
     }
 
+    const bookingId: string | null = insertData?.[0]?.id ?? null;
+    console.log('[MediQ] Booking created, ID:', bookingId);
+
+    // ── Confirm booking immediately — don't let upload block navigation ──
+    setIsSubmitting(false);
     setFinalToken(tokenNumber);
     setBooked(true);
     toast.success("Appointment Confirmed!", {
-      description: `Your ${mode} consultation with ${doctor.name} is scheduled.`,
+      description: `Your consultation with ${doctor.name} is scheduled.`,
     });
+    setTimeout(() => navigate('/status'), 1200);
+
+    // Handle file upload in background (fire-and-forget)
+    if (file && bookingId) {
+      const uploadFile = async () => {
+        try {
+          const uploaderId = user?.id ?? 'guest';
+          const fileExt = file.name.split('.').pop() || 'pdf';
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const filePath = `${uploaderId}/${fileName}`;
+
+          const uploadRes = await fetch(
+            `${SB_URL}/storage/v1/object/patient_records/${filePath}`,
+            {
+              method: 'POST',
+              headers: {
+                'apikey': SB_ANON_KEY,
+                'Authorization': `Bearer ${SB_ANON_KEY}`,
+                'Content-Type': file.type || 'application/octet-stream',
+              },
+              body: file,
+            }
+          );
+
+          if (uploadRes.ok) {
+            const publicUrl = `${SB_URL}/storage/v1/object/public/patient_records/${filePath}`;
+            const fileRecord: any = {
+              patient_id: uploaderId,
+              file_name: file.name,
+              file_path: publicUrl,
+              mime_type: file.type || 'application/pdf',
+              user_email: user?.email ?? null,
+              user_name: profile?.full_name ?? name,
+              booking_id: bookingId,
+            };
+
+            await fetch(`${SB_URL}/rest/v1/patient_files`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SB_ANON_KEY,
+                'Authorization': `Bearer ${SB_ANON_KEY}`,
+                'Prefer': 'return=minimal',
+              },
+              body: JSON.stringify(fileRecord),
+            });
+            console.log('[MediQ] Medical record uploaded and linked.');
+          } else {
+            console.error('[MediQ] File upload failed:', await uploadRes.text());
+          }
+        } catch (err: any) {
+          console.error('[MediQ] Upload error:', err?.message);
+        }
+      };
+      uploadFile();
+    }
   };
 
   if (booked) {
@@ -367,49 +389,30 @@ export default function BookSlot() {
                     <div>
                       <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">2. Select Time Slot</h3>
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                        {(() => {
-                           const parseMins = (t: string) => { const [h, m] = t.split(':').map(Number); return (h * 60) + (m || 0); };
-                           const formatTime = (mins: number) => {
-                              let h = Math.floor(mins / 60); const m = mins % 60;
-                              const ampm = h >= 12 ? 'PM' : 'AM';
-                              h = h % 12; h = h || 12;
-                              return `${h}:${m.toString().padStart(2, '0')} ${ampm}`;
-                           };
-                           const start = parseMins(startTime);
-                           const end = parseMins(endTime);
-                           const slots = [];
-                           const istNow = getNowIST();
-                           const currentMins = (istNow.getHours() * 60) + istNow.getMinutes();
-                           
-                           let current = start;
-                           while (current <= end - slotMinutes) {
-                              // Only show future slots for today
-                              const isPast = current <= currentMins;
-                              const timeStr = formatTime(current);
-                              
-                              slots.push(
-                                 <button
-                                    key={current}
-                                    type="button"
-                                    disabled={isPast}
-                                    onClick={() => setSelectedSlot(timeStr)}
-                                    className={`py-2 px-1 text-sm font-semibold rounded-xl border-2 transition-all ${
-                                      isPast ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed' :
-                                      selectedSlot === timeStr ? 'bg-teal-600 border-teal-600 text-white shadow-md' :
-                                      'bg-white border-slate-200 text-slate-700 hover:border-teal-400 hover:bg-teal-50'
-                                    }`}
-                                 >
-                                    {timeStr}
-                                 </button>
-                              );
-                              current += slotMinutes;
-                           }
-                           
-                           if (slots.length === 0) {
-                             return <div className="col-span-full text-slate-500 text-sm">No valid slots defined for working hours ({startTime} - {endTime}).</div>;
-                           }
-                           return slots;
-                        })()}
+                        {slotsLoading ? (
+                          <div className="col-span-full text-slate-500 text-sm">Loading slots...</div>
+                        ) : doctorSlots.length === 0 ? (
+                          <div className="col-span-full text-slate-500 text-sm">No schedule blocks found for today.</div>
+                        ) : (
+                          doctorSlots.map((slot) => {
+                            const disabled = slot.isPast || slot.isFull;
+                            return (
+                               <button
+                                  key={slot.key}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => setSelectedSlot(slot.label)}
+                                  className={`py-2 px-1 text-sm font-semibold rounded-xl border-2 transition-all ${
+                                    disabled ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-60' :
+                                    selectedSlot === slot.label ? 'bg-teal-600 border-teal-600 text-white shadow-md' :
+                                    'bg-white border-slate-200 text-slate-700 hover:border-teal-400 hover:bg-teal-50'
+                                  }`}
+                               >
+                                  {slot.label}
+                               </button>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   )}
@@ -457,6 +460,13 @@ export default function BookSlot() {
                       />
                     </Label>
                   </div>
+
+                  {bookingError && (
+                    <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-3 mb-4">
+                      <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700 font-medium">{bookingError}</p>
+                    </div>
+                  )}
 
                   <Button disabled={isSubmitting} type="submit" size="lg" className="w-full bg-teal-600 hover:bg-teal-700 h-14 rounded-xl text-lg font-bold shadow-xl shadow-teal-200">
                     {isSubmitting ? "Booking..." : "Confirm Booking & Join Queue"}

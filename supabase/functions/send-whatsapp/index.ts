@@ -1,3 +1,6 @@
+// @ts-nocheck — This file runs on Deno (Supabase Edge Runtime), not Node.
+// The Node/VS Code TypeScript server does not understand Deno globals,
+// https:// imports, or Deno std library. Errors here are false positives.
 // ============================================================
 // MediQ — WhatsApp Notification Edge Function
 // Triggered by Supabase Database Webhook on bookings UPDATE
@@ -36,7 +39,7 @@ function isValidPhone(phone: string | null | undefined): boolean {
 }
 
 // ── Message templates ────────────────────────────────────────
-function buildMessage(type: string, name: string, token: number | null): string {
+function buildMessage(type: string, name: string, token: number | null, extra?: { date?: string; doctorName?: string }): string {
   const tokenPart = token != null ? ` (Token #${token})` : "";
   switch (type) {
     case "ready":
@@ -45,6 +48,8 @@ function buildMessage(type: string, name: string, token: number | null): string 
       return `Hello ${name}, you are 2 patients away from your turn${tokenPart}. Please be ready! 🔔`;
     case "no_show":
       return `Hello ${name}, you missed your turn${tokenPart}. Please contact the front desk to reschedule. 📋`;
+    case "cancelled":
+      return `Hello ${name}, your appointment${extra?.date ? ` on ${extra.date}` : ''}${extra?.doctorName ? ` with ${extra.doctorName}` : ''} has been cancelled due to unavailability. Please rebook your appointment at your convenience. We apologise for the inconvenience. 🙏`;
     default:
       return `Hello ${name}, your appointment status has been updated${tokenPart}.`;
   }
@@ -83,15 +88,49 @@ async function sendWhatsApp(
   return { success: true, sid: data.sid };
 }
 
+// ── Helper: check notification preferences ──────────────────
+async function getNotificationPrefs(
+  supabase: ReturnType<typeof createClient>,
+  userEmail: string | null | undefined
+): Promise<{ notify_at_3: boolean; notify_at_2: boolean; notify_at_1: boolean; notify_at_turn: boolean; whatsapp_number: string | null } | null> {
+  if (!userEmail) return null;
+  const { data } = await supabase
+    .from('notification_preferences')
+    .select('notify_at_3,notify_at_2,notify_at_1,notify_at_turn,whatsapp_number')
+    .eq('user_email', userEmail)
+    .maybeSingle();
+  return data ?? null;
+}
+
 // ── Helper: check + send notification with dedup guard ───────
 async function sendNotification(
   supabase: ReturnType<typeof createClient>,
   bookingId: string,
   phone: string,
-  messageType: "ready" | "reminder" | "no_show",
+  messageType: "ready" | "reminder" | "no_show" | "cancelled",
   name: string,
-  token: number | null
+  token: number | null,
+  userEmail?: string | null,
+  extra?: { date?: string; doctorName?: string }
 ): Promise<void> {
+  // Check notification preferences if we have a user email
+  if (userEmail) {
+    const prefs = await getNotificationPrefs(supabase, userEmail);
+    if (prefs) {
+      // Check if this notification type is enabled
+      let enabled = true;
+      if (messageType === 'ready') enabled = prefs.notify_at_turn;
+      if (messageType === 'reminder') enabled = false; // handled separately with position check
+      if (!enabled) {
+        console.log(`[Prefs] Skipping '${messageType}' — disabled by user preferences`);
+        return;
+      }
+      // Use whatsapp_number from preferences if set
+      if (prefs.whatsapp_number) {
+        phone = prefs.whatsapp_number;
+      }
+    }
+  }
   // Dedup check
   const { data: existing } = await supabase
     .from("notification_log")
@@ -105,7 +144,7 @@ async function sendNotification(
     return;
   }
 
-  const message = buildMessage(messageType, name, token);
+  const message = buildMessage(messageType, name, token, extra);
   const result  = await sendWhatsApp(phone, message);
 
   await supabase.from("notification_log").insert({
@@ -120,16 +159,15 @@ async function sendNotification(
   console.log(`[Notify] '${messageType}' for ${name}: ${result.success ? "✅ sent" : "❌ failed"}`);
 }
 
-// ── Helper: send 2-position reminder to 2nd waiting patient ──
+// ── Helper: send position-aware reminder based on preferences ──
 async function sendReminderToSecondInQueue(
   supabase: ReturnType<typeof createClient>,
   doctorId: string,
   bookingDate: string
 ): Promise<void> {
-  // Get ordered waiting queue for this doctor today
   const { data: waitingQueue, error } = await supabase
     .from("bookings")
-    .select("id, patient_name, phone, token_number")
+    .select("id, patient_name, phone, token_number, user_email")
     .eq("doctor_id", doctorId)
     .eq("booking_date", bookingDate)
     .eq("status", "waiting")
@@ -140,31 +178,42 @@ async function sendReminderToSecondInQueue(
     return;
   }
 
-  // The patient at index 1 is 2nd in line → 2 positions away (1 ahead of them)
-  if (waitingQueue.length < 2) {
-    console.log("[Reminder] Not enough patients in queue for reminder");
-    return;
+  // Check all patients in queue for their notification preference position
+  for (let i = 0; i < waitingQueue.length; i++) {
+    const patient = waitingQueue[i];
+    const patientsAhead = i; // 0 = next in line
+
+    if (!isValidPhone(patient.phone)) continue;
+
+    // Fetch their preferences
+    const prefs = patient.user_email
+      ? await getNotificationPrefs(supabase, patient.user_email)
+      : null;
+
+    let shouldNotify = false;
+    let messageType: "ready" | "reminder" | "no_show" = "reminder";
+
+    if (patientsAhead === 0) continue; // they'll get 'ready' notification separately
+    if (patientsAhead === 1 && (prefs?.notify_at_1 ?? true)) shouldNotify = true;
+    if (patientsAhead === 2 && (prefs?.notify_at_2 ?? true)) shouldNotify = true;
+    if (patientsAhead === 3 && (prefs?.notify_at_3 ?? true)) shouldNotify = true;
+
+    if (shouldNotify) {
+      const phone = prefs?.whatsapp_number ?? patient.phone;
+      await sendNotification(
+        supabase,
+        patient.id,
+        phone,
+        messageType,
+        patient.patient_name,
+        patient.token_number
+      );
+    }
   }
-
-  const secondPatient = waitingQueue[1]; // 0-indexed: index 1 = 2nd in line
-
-  if (!isValidPhone(secondPatient.phone)) {
-    console.log("[Reminder] 2nd patient has no valid phone, skipping");
-    return;
-  }
-
-  await sendNotification(
-    supabase,
-    secondPatient.id,
-    secondPatient.phone,
-    "reminder",
-    secondPatient.patient_name,
-    secondPatient.token_number
-  );
 }
 
 // ── Main handler ─────────────────────────────────────────────
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
@@ -180,6 +229,7 @@ serve(async (req) => {
 
     const { id: bookingId, patient_name, phone, status, doctor_id, booking_date } = record;
     const token_number: number | null = record.token_number ?? null;
+    const user_email: string | null = record.user_email ?? null;
     const oldStatus = oldRecord?.status;
 
     console.log(`[Webhook] booking ${bookingId} | ${patient_name} | ${oldStatus} → ${status}`);
@@ -194,7 +244,7 @@ serve(async (req) => {
     // ── 1. Status → 'ready': notify this patient ──────────────
     if (status === "ready" && oldStatus !== "ready") {
       if (isValidPhone(phone)) {
-        await sendNotification(supabase, bookingId, phone, "ready", patient_name, token_number);
+        await sendNotification(supabase, bookingId, phone, "ready", patient_name, token_number, user_email);
       }
 
       // Also trigger 2-position reminder for 2nd patient in queue
@@ -216,7 +266,25 @@ serve(async (req) => {
       return json({ success: true, event: "no_show_notification_sent" });
     }
 
-    // ── 3. Status → 'done' or 'in-progress': reminder check ──
+    // ── 3. Status → 'cancelled': notify this patient ─────────
+    if (status === "cancelled" && oldStatus !== "cancelled") {
+      if (isValidPhone(phone)) {
+        // Format booking_date nicely for the message
+        const dateLabel = record.booking_date
+          ? new Date(record.booking_date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })
+          : undefined;
+        await sendNotification(
+          supabase, bookingId, phone, "cancelled",
+          patient_name, token_number, user_email,
+          { date: dateLabel, doctorName: doctor_id ? `Dr. (ID: ${doctor_id})` : undefined }
+        );
+      } else {
+        console.log("[Cancelled] No valid phone, skipping notification");
+      }
+      return json({ success: true, event: "cancellation_notification_sent" });
+    }
+
+    // ── 4. Status → 'done' or 'in-progress': reminder check ──
     // When a patient moves out of waiting (advances queue), check who is now 2nd
     if (
       (status === "done" || status === "in-progress") &&

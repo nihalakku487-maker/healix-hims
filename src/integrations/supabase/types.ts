@@ -29,6 +29,8 @@ export type Database = {
           status: Database["public"]["Enums"]["booking_status"]
           time_slot: string
           token_number: number
+          user_email: string | null
+          user_name: string | null
         }
         Insert: {
           arrived_at?: string | null
@@ -44,6 +46,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"]
           time_slot: string
           token_number: number
+          user_email?: string | null
+          user_name?: string | null
         }
         Update: {
           arrived_at?: string | null
@@ -59,6 +63,8 @@ export type Database = {
           status?: Database["public"]["Enums"]["booking_status"]
           time_slot?: string
           token_number?: number
+          user_email?: string | null
+          user_name?: string | null
         }
         Relationships: []
       }
@@ -215,6 +221,7 @@ export type Database = {
       patient_files: {
         Row: {
           booking_id: string | null
+          created_at: string | null
           file_name: string
           file_path: string
           id: string
@@ -222,9 +229,12 @@ export type Database = {
           notes: string | null
           patient_id: string
           uploaded_at: string
+          user_email: string | null
+          user_name: string | null
         }
         Insert: {
           booking_id?: string | null
+          created_at?: string | null
           file_name: string
           file_path: string
           id?: string
@@ -232,9 +242,12 @@ export type Database = {
           notes?: string | null
           patient_id: string
           uploaded_at?: string
+          user_email?: string | null
+          user_name?: string | null
         }
         Update: {
           booking_id?: string | null
+          created_at?: string | null
           file_name?: string
           file_path?: string
           id?: string
@@ -242,6 +255,8 @@ export type Database = {
           notes?: string | null
           patient_id?: string
           uploaded_at?: string
+          user_email?: string | null
+          user_name?: string | null
         }
         Relationships: []
       }
@@ -266,6 +281,69 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          id: string
+          user_email: string
+          notify_at_3: boolean
+          notify_at_2: boolean
+          notify_at_1: boolean
+          notify_at_turn: boolean
+          whatsapp_number: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_email: string
+          notify_at_3?: boolean
+          notify_at_2?: boolean
+          notify_at_1?: boolean
+          notify_at_turn?: boolean
+          whatsapp_number?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_email?: string
+          notify_at_3?: boolean
+          notify_at_2?: boolean
+          notify_at_1?: boolean
+          notify_at_turn?: boolean
+          whatsapp_number?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          id: string
+          email: string
+          full_name: string | null
+          phone: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          full_name?: string | null
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -282,7 +360,7 @@ export type Database = {
       }
     }
     Enums: {
-      booking_status: "waiting" | "ready" | "in-progress" | "done" | "no-show"
+      booking_status: "waiting" | "ready" | "in-progress" | "done" | "no-show" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -410,7 +488,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      booking_status: ["waiting", "ready", "in-progress", "done", "no-show"],
+      booking_status: ["waiting", "ready", "in-progress", "done", "no-show", "cancelled"],
     },
   },
 } as const

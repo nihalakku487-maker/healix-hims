@@ -5,13 +5,16 @@ import { MOCK_HOSPITALS, MOCK_DEPARTMENTS, MOCK_DOCTORS } from '@/lib/mockData';
 import { supabase } from "@/lib/supabase";
 import { getTodayISTDateString } from "@/lib/ist";
 import { isDoctorAvailableNow } from "@/lib/availability";
-import { Star, RefreshCw, ArrowRight, Activity, Stethoscope, Shield, Zap } from 'lucide-react';
+import { Star, RefreshCw, ArrowRight, Activity, Stethoscope, Shield, Zap, Users, Clock } from 'lucide-react';
 import MediQLogo, { MediQMark } from '@/components/MediQLogo';
+import PatientNav from '@/components/PatientNav';
+import { useAuth } from '@/contexts/AuthContext';
 
 const HOSPITAL_ID = "sastha";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const hospital = MOCK_HOSPITALS.find((h) => h.id === HOSPITAL_ID);
   const doctors = MOCK_DOCTORS.filter((d) => d.hospitalId === HOSPITAL_ID);
 
@@ -64,45 +67,12 @@ const Index = () => {
     <div className="min-h-screen bg-white font-['Inter',sans-serif] text-gray-900">
 
       {/* ──── NAVIGATION ──── */}
-      <header className="sticky top-0 z-50" style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
-            <MediQMark size={36} />
-            <MediQLogo size={42} />
-          </div>
-
-          {/* Nav Links */}
-          <nav className="hidden md:flex items-center gap-8">
-            {['Clinics', 'Specialists', 'Sanctuary', 'Patient Portal'].map(label => (
-              <button
-                key={label}
-                onClick={() => {
-                  if (label === 'Specialists') document.getElementById('specialists')?.scrollIntoView({ behavior: 'smooth' });
-                  else if (label === 'Patient Portal') navigate('/status');
-                  else if (label === 'Clinics') document.getElementById('departments')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="text-sm font-medium hover:opacity-60 transition-opacity"
-                style={{ color: '#374151' }}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-
-          <button
-            onClick={() => document.getElementById('specialists')?.scrollIntoView({ behavior: 'smooth' })}
-            className="mediq-nav-btn text-sm hidden md:block"
-          >
-            Book Appointment
-          </button>
-        </div>
-      </header>
+      <PatientNav />
 
       {/* ──── HERO SECTION ──── */}
       <section className="mediq-hero-bg relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 lg:py-28">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
 
             {/* Left: Headline */}
             <motion.div
@@ -110,19 +80,92 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
             >
-              <p className="mediq-label text-emerald-400 mb-5 tracking-widest">SASTHA WELLNESS CENTER</p>
-              <h1 className="text-5xl lg:text-6xl font-extrabold leading-[1.08] text-white mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <p className="mediq-label text-emerald-400 mb-4 tracking-widest text-xs sm:text-sm">SASTHA WELLNESS CENTER</p>
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] text-white mb-4 sm:mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Healthcare,{' '}
                 <span className="text-emerald-400">simplified</span>{' '}
                 for you.
               </h1>
-              <p className="text-base lg:text-lg text-emerald-100/70 leading-relaxed mb-10 max-w-md">
+              <p className="text-sm lg:text-lg text-emerald-100/70 leading-relaxed mb-6 sm:mb-10 max-w-md">
                 Experience clinical excellence within a sanctuary of calm. Managing your health journey should be as seamless as a breath of fresh air.
               </p>
 
+              {/* ── Mobile Hero Visual (only shown on small screens) ── */}
+              {featuredDoc && (
+                <motion.div
+                  className="lg:hidden mb-7 relative"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                >
+                  {/* Doctor photo with gradient */}
+                  <div className="relative w-full rounded-3xl overflow-hidden" style={{ height: 220 }}>
+                    <img
+                      src={featuredDoc.image}
+                      alt={featuredDoc.name}
+                      className="w-full h-full object-cover object-top"
+                    />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(13,43,32,0.95) 0%, rgba(13,43,32,0.3) 50%, transparent 100%)' }} />
+
+                    {/* Doctor info at bottom */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-white font-black text-lg leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{featuredDoc.name}</p>
+                          <p className="text-emerald-300 text-xs font-semibold">{featuredDoc.specialty}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full" style={{ background: 'rgba(45,212,191,0.2)', border: '1px solid rgba(45,212,191,0.4)' }}>
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span className="text-emerald-300 text-xs font-bold">Live</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rating badge top-right */}
+                    <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1.5 rounded-full" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
+                      <Star size={11} className="text-amber-400 fill-amber-400" />
+                      <span className="text-white text-xs font-bold">{featuredDoc.rating}</span>
+                    </div>
+                  </div>
+
+                  {/* Live stats strip below photo */}
+                  <motion.div
+                    animate={{ y: [0, -3, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    className="mt-3 rounded-2xl p-4"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(12px)' }}
+                  >
+                    <div className="flex items-center justify-between">
+                      {/* Queue count */}
+                      <div className="text-center">
+                        <p className="text-emerald-400/70 text-[10px] font-bold uppercase tracking-widest">In Queue</p>
+                        <p className="text-white text-2xl font-black">{featuredQueue}</p>
+                      </div>
+                      <div className="w-px h-8 bg-white/15" />
+                      {/* Wait time */}
+                      <div className="text-center">
+                        <p className="text-emerald-400/70 text-[10px] font-bold uppercase tracking-widest">Est. Wait</p>
+                        <p className="text-2xl font-black" style={{ color: '#2DD4BF' }}>
+                          {featuredQueue === 0 ? '0' : `~${featuredWait}`}<span className="text-sm font-semibold">m</span>
+                        </p>
+                      </div>
+                      <div className="w-px h-8 bg-white/15" />
+                      {/* Status */}
+                      <div className="text-center">
+                        <p className="text-emerald-400/70 text-[10px] font-bold uppercase tracking-widest">Status</p>
+                        <p className="text-xs font-bold text-emerald-300 mt-1">● Open</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+
               <div className="flex flex-wrap gap-3">
                 <button
-                  onClick={() => document.getElementById('specialists')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => {
+                    if (!user) navigate('/patient-login?redirect=/#specialists');
+                    else document.getElementById('specialists')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
                   className="px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-100"
                   style={{ background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.3)', color: 'white', backdropFilter: 'blur(8px)' }}
                 >
@@ -231,10 +274,10 @@ const Index = () => {
       {/* ──── SPECIALISTS SECTION ──── */}
       <section id="specialists" className="py-20 bg-white">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="flex items-end justify-between mb-12">
+          <div className="flex items-end justify-between mb-8 sm:mb-12">
             <div>
               <p className="mediq-label mb-3" style={{ color: '#1B4332' }}>EXPERTISE</p>
-              <h2 className="text-4xl font-extrabold text-gray-900 leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-gray-900 leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 World-class care from<br />leading specialists.
               </h2>
             </div>
@@ -252,7 +295,7 @@ const Index = () => {
             {doctors[0] && (() => {
               const doc = doctors[0];
               const av = doctorAvailability[doc.id];
-              const isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '09:00', av.end_time || '18:00') : isDoctorAvailableNow(true, '09:00', '18:00');
+              const isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '00:00', av.end_time || '23:59') : true;
               return (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -282,20 +325,20 @@ const Index = () => {
                     <div className="flex gap-2">
                       {isAvail ? (
                         <button
-                          onClick={() => navigate(`/book/${doc.id}`)}
+                          onClick={() => {
+                            if (!user) navigate(`/patient-login?redirect=/book/${doc.id}`);
+                            else navigate(`/book/${doc.id}`);
+                          }}
                           className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-white transition hover:opacity-90"
                           style={{ background: '#1B4332' }}
                         >
-                          Consult
+                          Book Appointment
                         </button>
                       ) : (
                         <button disabled className="flex-1 py-2.5 rounded-2xl text-sm font-semibold text-gray-400" style={{ background: '#F3F4F6' }}>
                           Offline
                         </button>
                       )}
-                      <button className="px-4 py-2.5 rounded-2xl text-sm font-semibold border text-gray-600 hover:bg-gray-50 transition">
-                        View Bio
-                      </button>
                     </div>
                   </div>
                 </motion.div>
@@ -307,7 +350,7 @@ const Index = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 {doctors.slice(1).map((doc, i) => {
                   const av = doctorAvailability[doc.id];
-                  const isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '09:00', av.end_time || '18:00') : isDoctorAvailableNow(true, '09:00', '18:00');
+                  const isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '00:00', av.end_time || '23:59') : true;
                   return (
                     <motion.div
                       key={doc.id}
@@ -332,9 +375,23 @@ const Index = () => {
                         </span>
                         <span className="text-gray-300 text-xs">·</span>
                         <span className="text-xs text-gray-500">{doc.patients}+ Reviews</span>
+                        <span className="text-gray-300 text-xs">·</span>
+                        <span className="text-xs text-gray-500">{queueCounts[doc.id] ?? 0} in queue</span>
                       </div>
                       {isAvail ? (
-                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#D1FAE5', color: '#065F46' }}>● Available</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: '#D1FAE5', color: '#065F46' }}>● Available</span>
+                          <button
+                            onClick={() => {
+                              if (!user) navigate(`/patient-login?redirect=/book/${doc.id}`);
+                              else navigate(`/book/${doc.id}`);
+                            }}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-full text-white transition hover:opacity-90"
+                            style={{ background: '#1B4332' }}
+                          >
+                            Book
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">Offline</span>
                       )}
@@ -417,7 +474,7 @@ const Index = () => {
               viewport={{ once: true }}
               className="relative"
             >
-              <div className="rounded-3xl overflow-hidden shadow-2xl" style={{ height: '480px' }}>
+              <div className="rounded-3xl overflow-hidden shadow-2xl" style={{ height: 'clamp(280px, 50vw, 480px)' }}>
                 <img
                   src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop"
                   alt="Sastha Wellness Center"

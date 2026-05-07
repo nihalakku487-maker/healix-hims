@@ -11,8 +11,32 @@ import { useBookings, type Booking } from "@/hooks/useBookings";
 import { getTodayISTDateString } from "@/lib/ist";
 import { isDoctorAvailableNow } from "@/lib/availability";
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity, Clock, FileText, ArrowRight, UserCircle, Video, Building2, Download, LogOut, CheckCircle, BellRing, UserX } from "lucide-react";
+import { Activity, Clock, FileText, ArrowRight, UserCircle, Video, Building2, Download, LogOut, CheckCircle, BellRing, UserX, ChevronDown, ChevronUp, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
+
+const SB_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SB_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+// Direct REST helper — bypasses SDK auth lock (autoRefreshToken:false)
+async function updateBooking(id: string, patch: Record<string, unknown>) {
+  const res = await fetch(
+    `${SB_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SB_ANON,
+        Authorization: `Bearer ${SB_ANON}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(patch),
+    }
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(body?.message || res.statusText);
+  }
+}
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
@@ -36,11 +60,12 @@ export default function DoctorDashboard() {
   const { bookings, loading } = useBookings({ bookingDate, doctorId });
   const [patientFiles, setPatientFiles] = useState<any[]>([]);
   const [elapsedMins, setElapsedMins] = useState(0);
+  const [queueOpen, setQueueOpen] = useState(false); // mobile queue drawer
   
   // Realtime settings
   const [isAvailable, setIsAvailable] = useState(true);
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("18:00");
+  const [startTime, setStartTime] = useState("00:00");
+  const [endTime, setEndTime] = useState("23:59");
   const [slotMinutes, setSlotMinutes] = useState(30);
 
   // Derived state
@@ -76,40 +101,65 @@ export default function DoctorDashboard() {
   }, [doctorId]);
   
   const updateSettings = async (updates: any) => {
-    const { error } = await supabase.from('doctor_settings').upsert({ doctor_id: doctorId, ...updates });
-    if (error) {
-      console.error(error);
-      toast.error("Database Error", { description: "You must run the migration SQL file first!" });
+    // Use direct REST fetch to bypass supabase-js auth lock
+    // Prefer: resolution=merge-duplicates handles upsert on doctor_id conflict
+    const res = await fetch(`${SB_URL}/rest/v1/doctor_settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SB_ANON,
+        Authorization: `Bearer ${SB_ANON}`,
+        Prefer: 'resolution=merge-duplicates,return=minimal',
+      },
+      body: JSON.stringify({ doctor_id: doctorId, ...updates }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error('Settings error:', body);
+      toast.error("Failed to update settings", { description: body?.message || res.statusText });
     }
   };
   
   useEffect(() => {
     const fetchFiles = async () => {
-      if (activeBooking && activeBooking.phone) {
-         // 1. Get patient id by phone
-         const { data: patientData } = await supabase
-           .from('patients')
-           .select('id')
-           .eq('phone', activeBooking.phone)
-           .maybeSingle();
-
-         if (patientData && patientData.id) {
-           // 2. Fetch all files for this patient
-           const { data: filesData } = await supabase
-             .from('patient_files')
-             .select('*')
-             .eq('patient_id', patientData.id)
-             .order('uploaded_at', { ascending: false });
-           setPatientFiles(filesData || []);
-         } else {
-           setPatientFiles([]);
-         }
-      } else {
-         setPatientFiles([]);
+      if (!activeBooking?.id) {
+        setPatientFiles([]);
+        return;
       }
+
+      // Build query: match by booking_id, OR fallback to user_email if available
+      // Note: Inside an `or=()` block, PostgREST requires using `.` instead of `=` for columns.
+      // E.g., `or=(booking_id.eq.123,user_email.eq.test)`
+      const bookingIdFilter = `booking_id.eq.${activeBooking.id}`;
+      const emailFilter = activeBooking.user_email
+        ? `user_email.eq.${encodeURIComponent(activeBooking.user_email)}`
+        : null;
+
+      const filterQuery = emailFilter
+        ? `or=(${bookingIdFilter},${emailFilter})`
+        : `booking_id=eq.${activeBooking.id}`; // Fallback to standard `?col=eq.val` syntax if no OR is needed
+
+      const url = `${SB_URL}/rest/v1/patient_files?${filterQuery}&order=created_at.desc`;
+      console.log('[MediQ] Fetching patient files:', url);
+
+      const res = await fetch(url, {
+        headers: {
+          apikey: SB_ANON,
+          Authorization: `Bearer ${SB_ANON}`,
+          Accept: 'application/json',
+        },
+      });
+      const data = await res.json().catch(() => []);
+      console.log('[MediQ] Patient files result:', data);
+      setPatientFiles(Array.isArray(data) ? data : []);
     };
+
     fetchFiles();
-  }, [activeBooking?.id, activeBooking?.phone]);
+
+    // Poll every 5s while a patient is active — catches async uploads
+    const interval = setInterval(fetchFiles, 5000);
+    return () => clearInterval(interval);
+  }, [activeBooking?.id]);
 
   useEffect(() => {
     if (activeBooking?.called_at) {
@@ -150,14 +200,11 @@ export default function DoctorDashboard() {
 
     // 1. Mark the current active booking as 'done'
     if (activeBooking) {
-      const { error: err1 } = await supabase
-        .from('bookings')
-        .update({ status: 'done' })
-        .eq('id', activeBooking.id);
-        
-      if (err1) {
-        toast.error(`Failed to mark current patient as done`);
-        console.error(err1);
+      try {
+        await updateBooking(activeBooking.id, { status: 'done' });
+      } catch (err: any) {
+        toast.error('Failed to mark current patient as done', { description: err.message });
+        console.error(err);
         return; // Halt if we couldn't properly close out the current patient
       }
     }
@@ -165,16 +212,12 @@ export default function DoctorDashboard() {
     // 2. Advance the queue if there is someone waiting
     if (waitingBookings.length > 0) {
       const nextBooking = waitingBookings[0];
-      const { error: err2 } = await supabase
-        .from('bookings')
-        .update({ status: 'ready', called_at: new Date().toISOString() })
-        .eq('id', nextBooking.id);
-
-      if (err2) {
-        toast.error(`Failed to call next patient`);
-        console.error(err2);
-      } else {
+      try {
+        await updateBooking(nextBooking.id, { status: 'ready', called_at: new Date().toISOString() });
         toast.success(`Called Next Patient`, { description: `Token #${nextBooking.token_number} is up next.` });
+      } catch (err: any) {
+        toast.error('Failed to call next patient', { description: err.message });
+        console.error(err);
       }
     } else {
       if (activeBooking) {
@@ -194,88 +237,115 @@ export default function DoctorDashboard() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-teal-200">
       {/* Top Navbar */}
-      <header className="bg-white border-b border-slate-100 shadow-sm z-10">
-        <div className="px-6 py-4 flex items-center justify-between">
+      <header className="bg-white border-b border-slate-100 shadow-sm z-10 sticky top-0">
+        <div className="px-3 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 text-white rounded-2xl bg-teal-600 flex items-center justify-center">
-              <Activity strokeWidth={2.5} size={20} />
+            <div className="h-9 w-9 text-white rounded-xl bg-teal-600 flex items-center justify-center flex-shrink-0">
+              <Activity strokeWidth={2.5} size={18} />
             </div>
             <div>
-              <p className="text-xl font-extrabold text-slate-800 tracking-tight">Sastha Wellness Provider</p>
-              <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Workspace</p>
+              <p className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Sastha Wellness</p>
+              <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Workspace</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {/* Header Availability Toggle */}
-            <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-              <div className="flex flex-col text-right">
-                <span className="text-xs font-bold text-slate-500">Working Hours</span>
-                 <div className="flex gap-1 items-center">
-                   <Input type="time" value={startTime} onChange={e => { setStartTime(e.target.value); updateSettings({start_time: e.target.value}); }} className="w-20 h-6 text-xs p-1" />
-                   <span className="text-xs text-slate-400 mt-1">-</span>
-                   <Input type="time" value={endTime} onChange={e => { setEndTime(e.target.value); updateSettings({end_time: e.target.value}); }} className="w-20 h-6 text-xs p-1" />
-                </div>
-              </div>
-              <div className="w-px h-8 bg-slate-200 mx-1"></div>
-              <div className="flex flex-col text-right">
-                <span className="text-xs font-bold text-slate-500">Slot Size</span>
-                <div className="flex items-center gap-1">
-                   <Input type="number" min="5" max="120" step="5" value={slotMinutes} onChange={e => {
-                     const val = parseInt(e.target.value);
-                     if (!isNaN(val)) {
-                       setSlotMinutes(val);
-                       updateSettings({slot_minutes: val});
-                     }
-                   }} className="w-14 h-6 text-xs p-1" />
-                   <span className="text-xs text-slate-400 mt-1">m</span>
-                </div>
-              </div>
-              <div className="w-px h-8 bg-slate-200 mx-1"></div>
-              <div className="flex items-center gap-2">
-                 <Switch checked={isAvailable} onCheckedChange={(val) => { setIsAvailable(val); updateSettings({is_available: val}); }} id="available-mode" />
-                 <label htmlFor="available-mode" className={`text-sm font-bold ${isAvailable ? 'text-teal-600' : 'text-slate-400'}`}>
-                   {isAvailable ? "Available" : "Absent"}
-                 </label>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2 pr-4 border-r border-slate-100 pl-2">
-              <div className="font-medium text-slate-700 text-right">
-                <p className="text-sm font-bold">{doctor.name}</p>
-                <p className="text-xs text-slate-500">{doctor.specialty}</p>
+          {/* Settings row — wraps on mobile */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Doctor info + manage schedule + logout */}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/doctor/schedule')}
+                className="text-teal-700 border-teal-200 hover:bg-teal-50 rounded-lg gap-1.5 hidden sm:flex"
+              >
+                <CalendarDays size={14} />
+                <span>Manage Schedule</span>
+              </Button>
+              <button
+                onClick={() => navigate('/doctor/schedule')}
+                className="sm:hidden h-8 w-8 flex items-center justify-center rounded-xl border border-teal-200 text-teal-700 hover:bg-teal-50"
+                title="Manage Schedule"
+              >
+                <CalendarDays size={15} />
+              </button>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full pl-1 pr-3 py-1">
+                <img src={doctor.image} alt={doctor.name} className="h-6 w-6 rounded-full object-cover" />
+                <span className="text-xs font-bold text-slate-700 hidden sm:inline">{doctor.name}</span>
               </div>
-              <img src={doctor.image} alt={doctor.name} className="h-10 w-10 rounded-full border border-slate-200" />
+              <Button variant="ghost" size="sm" className="text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg px-2" onClick={handleLogout}>
+                <LogOut size={16} />
+                <span className="ml-1 hidden sm:inline">Exit</span>
+              </Button>
             </div>
-            <Button variant="ghost" className="text-slate-500 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
-              <LogOut size={18} className="mr-2" /> Exit
-            </Button>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar Queue */}
-        <aside className="w-80 bg-white border-r border-slate-100 flex flex-col h-[calc(100vh-73px)]">
+      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Mobile Queue Toggle */}
+        <div className="lg:hidden bg-white border-b border-slate-100 px-4 py-2">
+          <button
+            onClick={() => setQueueOpen(o => !o)}
+            className="w-full flex items-center justify-between py-2 text-sm font-bold text-slate-700"
+          >
+            <span className="flex items-center gap-2">
+              <Clock size={16} className="text-teal-600" /> Live Queue
+              <Badge className="bg-teal-100 text-teal-700 border-0 text-xs">{waitingBookings.length} Waiting</Badge>
+            </span>
+            {queueOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+          </button>
+          <AnimatePresence>
+            {queueOpen && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <div className="pb-3 space-y-2 max-h-64 overflow-y-auto">
+                  {activeBooking && (
+                    <div className="p-3 rounded-xl bg-white border border-teal-500 text-sm">
+                      <span className="font-bold text-slate-800">
+                        #{activeBooking.token_number} · {activeBooking.patient_name}
+                        {activeBooking.time_slot && ` (${activeBooking.time_slot})`}
+                      </span>
+                      <Badge className="ml-2 bg-teal-500 text-white border-0 text-xs">{activeBooking.status === 'ready' ? 'Ready' : 'Current'}</Badge>
+                    </div>
+                  )}
+                  {waitingBookings.map(p => (
+                    <div key={p.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm">
+                      <span className="font-semibold text-slate-700">
+                        #{p.token_number} · {p.patient_name}
+                        {p.time_slot && ` (${p.time_slot})`}
+                      </span>
+                      <Badge className="ml-2 bg-slate-100 text-slate-500 border-0 text-xs">Waiting</Badge>
+                    </div>
+                  ))}
+                  {waitingBookings.length === 0 && !activeBooking && (
+                    <p className="text-slate-400 text-xs text-center py-2">Queue is empty</p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Left Sidebar Queue — desktop only */}
+        <aside className="hidden lg:flex w-72 xl:w-80 bg-white border-r border-slate-100 flex-col h-[calc(100vh-73px)]">
           <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
             <h2 className="font-bold text-slate-800 flex items-center gap-2">
               <Clock size={18} className="text-teal-600"/> Live Queue
             </h2>
             <Badge className="bg-teal-100 text-teal-700 border-0">{waitingBookings.length} Wait</Badge>
           </div>
-          
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
             <AnimatePresence>
               {waitingBookings.length === 0 && !activeBooking && (
-                 <motion.p initial={{opacity:0}} animate={{opacity:1}} className="text-center text-slate-500 py-10 font-medium">Queue is empty!</motion.p>
+                <motion.p initial={{opacity:0}} animate={{opacity:1}} className="text-center text-slate-500 py-10 font-medium">Queue is empty!</motion.p>
               )}
               {activeBooking && (
-                <motion.div 
-                  key={activeBooking.id}
-                  layout
-                  className={`p-4 rounded-2xl cursor-pointer border transition-all bg-white border-teal-500 shadow-md ring-1 ring-teal-500/20`}
-                >
+                <motion.div key={activeBooking.id} layout className="p-4 rounded-2xl border bg-white border-teal-500 shadow-md ring-1 ring-teal-500/20">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-slate-800">#{activeBooking.token_number} &middot; {activeBooking.patient_name}</span>
+                    <span className="font-bold text-slate-800">
+                      #{activeBooking.token_number} &middot; {activeBooking.patient_name}
+                      {activeBooking.time_slot && <span className="text-teal-600 ml-1">({activeBooking.time_slot})</span>}
+                    </span>
                     {activeBooking.status === 'ready' ? (
                       <Badge variant="default" className="bg-amber-500 text-white border-0">Ready</Badge>
                     ) : (
@@ -284,15 +354,13 @@ export default function DoctorDashboard() {
                   </div>
                 </motion.div>
               )}
-              
               {waitingBookings.map((patient) => (
-                <motion.div 
-                  key={patient.id}
-                  layout
-                  className={`p-4 rounded-2xl cursor-pointer border transition-all bg-white border-slate-100 shadow-sm opacity-70`}
-                >
+                <motion.div key={patient.id} layout className="p-4 rounded-2xl border bg-white border-slate-100 shadow-sm opacity-70">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-slate-800">#{patient.token_number} &middot; {patient.patient_name}</span>
+                    <span className="font-bold text-slate-800">
+                      #{patient.token_number} &middot; {patient.patient_name}
+                      {patient.time_slot && <span className="text-slate-500 ml-1">({patient.time_slot})</span>}
+                    </span>
                     <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-0">Waiting</Badge>
                   </div>
                 </motion.div>
@@ -302,32 +370,37 @@ export default function DoctorDashboard() {
         </aside>
 
         {/* Main Content Area */}
-        <section className="flex-1 bg-slate-50/50 p-8 h-[calc(100vh-73px)] overflow-y-auto">
+        <section className="flex-1 bg-slate-50/50 p-4 sm:p-8 overflow-y-auto">
           {!isCurrentlyWorking && (
-             <div className="mb-6 rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-3 text-amber-800">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <UserX size={20} className="text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold">You are currently offline</h3>
-                    <p className="text-sm text-amber-700/80">Queue progression is paused. Patients cannot book new slots until you are available and within your working hours.</p>
-                  </div>
+            <div className="mb-6 rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-start sm:items-center justify-between shadow-sm gap-3">
+              <div className="flex items-start sm:items-center gap-3 text-amber-800">
+                <div className="p-2 bg-amber-100 rounded-lg flex-shrink-0">
+                  <UserX size={20} className="text-amber-600" />
                 </div>
-             </div>
+                <div>
+                  <h3 className="font-bold">You are currently offline</h3>
+                  <p className="text-sm text-amber-700/80">Queue progression is paused. Patients cannot book new slots.</p>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeBooking ? (
             <div className="max-w-4xl mx-auto">
               {/* Status Header */}
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
                  <div className="flex flex-col gap-2">
-                   <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                     <UserCircle className="text-slate-400" size={32} />
-                     Token #{activeBooking.token_number} - {activeBooking.patient_name}
+                   <h1 className="text-xl sm:text-3xl font-black text-slate-800 flex flex-wrap items-center gap-2 sm:gap-3">
+                     <UserCircle className="text-slate-400 flex-shrink-0" size={28} />
+                     <span>Token #{activeBooking.token_number} — {activeBooking.patient_name}</span>
+                     {activeBooking.time_slot && (
+                       <Badge className="bg-slate-100 text-slate-600 border border-slate-200 ml-2 text-sm">
+                         {activeBooking.time_slot}
+                       </Badge>
+                     )}
                    </h1>
                    {activeBooking.status === 'ready' && (
-                     <Badge className="bg-amber-100 text-amber-800 border-0 w-fit">Waiting for Receptionist (Not sent in yet)</Badge>
+                     <Badge className="bg-amber-100 text-amber-800 border-0 w-fit text-xs">Waiting for Receptionist</Badge>
                    )}
                    {activeBooking.called_at && (
                       <p className={`text-sm font-bold ${elapsedMins >= 5 ? 'text-red-500' : 'text-slate-500'}`}>
@@ -337,8 +410,8 @@ export default function DoctorDashboard() {
                       </p>
                    )}
                  </div>
-                 <Button onClick={handleCallNext} size="lg" className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-lg border-0 h-12 px-6">
-                   Complete & Call Next <ArrowRight className="ml-2" size={18} />
+                 <Button onClick={handleCallNext} size="lg" className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl shadow-lg border-0 h-12 px-6 w-full sm:w-auto">
+                   Complete &amp; Call Next <ArrowRight className="ml-2" size={18} />
                  </Button>
               </div>
 
@@ -405,7 +478,14 @@ export default function DoctorDashboard() {
                                   <p className="text-sm font-bold text-slate-800">{doc.file_name}</p>
                                 </div>
                               </div>
-                              <a href={doc.file_path} target="_blank" className="text-slate-500 hover:text-teal-600 hover:bg-teal-50 px-3 py-1 rounded">
+                              <a
+                                href={doc.file_path}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={`Download ${doc.file_name}`}
+                                aria-label={`Download ${doc.file_name}`}
+                                className="text-slate-500 hover:text-teal-600 hover:bg-teal-50 px-3 py-1 rounded"
+                              >
                                 <Download size={18} />
                               </a>
                            </div>

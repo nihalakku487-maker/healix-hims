@@ -183,6 +183,8 @@ export default function HospitalAnalytics() {
                 type="date"
                 value={selectedDate}
                 max={getTodayISTDateString()}
+                title="Select analytics date"
+                aria-label="Select analytics date"
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="bg-transparent border-0 text-sm font-bold text-teal-800 outline-none w-auto cursor-pointer"
               />

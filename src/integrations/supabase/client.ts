@@ -18,6 +18,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   auth: {
     storage: localStorage,
     persistSession: true,
-    autoRefreshToken: true,
-  }
+    // autoRefreshToken uses navigator.locks internally which causes
+    // "lock stolen" errors when realtime subscriptions run concurrently.
+    // Supabase tokens are valid for 1 hour — disable refresh to prevent the conflict.
+    autoRefreshToken: false,
+    detectSessionInUrl: true,
+  },
+  global: {
+    headers: { 'x-client-info': 'mediq-web' },
+  },
 });
