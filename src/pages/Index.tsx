@@ -23,28 +23,44 @@ const Index = () => {
 
   useEffect(() => {
     const fetchQueues = async () => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('doctor_id, status, booking_date');
-      if (error || !data) return;
-      const counts: Record<string, number> = {};
-      const today = getTodayISTDateString();
-      data.forEach(booking => {
-        if (booking.booking_date === today && (booking.status === 'waiting' || booking.status === 'in-progress')) {
-          if (booking.doctor_id) {
-            counts[booking.doctor_id] = (counts[booking.doctor_id] || 0) + 1;
+      try {
+        const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+        const SB_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const res = await fetch(`${SB_URL}/rest/v1/bookings?select=doctor_id,status,booking_date`, {
+          headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` }
+        });
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
+        const counts: Record<string, number> = {};
+        const today = getTodayISTDateString();
+        data.forEach((booking: any) => {
+          if (booking.booking_date === today && (booking.status === 'waiting' || booking.status === 'in-progress')) {
+            if (booking.doctor_id) {
+              counts[booking.doctor_id] = (counts[booking.doctor_id] || 0) + 1;
+            }
           }
-        }
-      });
-      setQueueCounts(counts);
+        });
+        setQueueCounts(counts);
+      } catch (err) {
+        console.error('fetchQueues error', err);
+      }
     };
 
     const fetchAvailability = async () => {
-      const { data, error } = await supabase.from('doctor_settings').select('doctor_id, is_available, start_time, end_time');
-      if (error || !data) return;
-      const avails: Record<string, any> = {};
-      data.forEach(d => { avails[d.doctor_id] = d; });
-      setDoctorAvailability(avails);
+      try {
+        const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+        const SB_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const res = await fetch(`${SB_URL}/rest/v1/doctor_settings?select=doctor_id,is_available,start_time,end_time`, {
+          headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` }
+        });
+        const data = await res.json();
+        if (!Array.isArray(data)) return;
+        const avails: Record<string, any> = {};
+        data.forEach((d: any) => { avails[d.doctor_id] = d; });
+        setDoctorAvailability(avails);
+      } catch (err) {
+        console.error('fetchAvailability error', err);
+      }
     };
 
     fetchQueues();

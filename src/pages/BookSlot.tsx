@@ -61,20 +61,30 @@ export default function BookSlot() {
   useEffect(() => {
     if (!doctor) return;
     const fetchCount = async () => {
-      const { count } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', doctor.id)
-        .eq('booking_date', getTodayISTDateString())
-        .in('status', ['waiting', 'in-progress']);
-      setLiveQueueCount(count ?? 0);
+      try {
+        const res = await fetch(`${SB_URL}/rest/v1/bookings?doctor_id=eq.${doctor.id}&booking_date=eq.${getTodayISTDateString()}&status=in.(waiting,in-progress)&select=id`, {
+          headers: { apikey: SB_ANON_KEY, Authorization: `Bearer ${SB_ANON_KEY}` }
+        });
+        const data = await res.json();
+        setLiveQueueCount(Array.isArray(data) ? data.length : 0);
+      } catch (err) {
+        console.error("fetchCount err", err);
+        setLiveQueueCount(0);
+      }
     };
     const fetchSetting = async () => {
-      const { data } = await supabase.from('doctor_settings').select('*').eq('doctor_id', doctor.id).maybeSingle();
-      if (data) {
-        if (data.avg_wait_minutes) setWaitMultiplier(data.avg_wait_minutes);
-        setIsAvail(data.is_available ?? true); // Only check global presence toggle, disregard legacy start/end time
-        setIsAvail(data.is_available ?? true);
+      try {
+        const res = await fetch(`${SB_URL}/rest/v1/doctor_settings?doctor_id=eq.${doctor.id}&select=*`, {
+          headers: { apikey: SB_ANON_KEY, Authorization: `Bearer ${SB_ANON_KEY}`, Prefer: 'return=representation' }
+        });
+        const data = await res.json();
+        const row = Array.isArray(data) ? data[0] : null;
+        if (row) {
+          if (row.avg_wait_minutes) setWaitMultiplier(row.avg_wait_minutes);
+          setIsAvail(row.is_available ?? true);
+        }
+      } catch (err) {
+        console.error("fetchSetting err", err);
       }
     };
     fetchCount();

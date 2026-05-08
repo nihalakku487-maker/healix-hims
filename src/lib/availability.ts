@@ -10,28 +10,10 @@ import { getNowIST } from "./ist";
  */
 export function isDoctorAvailableNow(
   isAvailable: boolean,
-  startTime: string,
-  endTime: string
+  startTime?: string,
+  endTime?: string
 ): boolean {
-  if (!isAvailable) return false;
-
-  // Check bounds using IST. Time format is 'HH:mm'
-  const timeIST = getNowIST();
-  const currentTotalMins = (timeIST.getHours() * 60) + timeIST.getMinutes();
-
-  const parseMins = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return (h * 60) + (m || 0);
-  };
-
-  const startMins = parseMins(startTime);
-  const endMins = parseMins(endTime);
-
-  // Consider boundary wrap around cases if working overnight (rare for doctors, but covers shift logic)
-  if (startMins <= endMins) {
-    return currentTotalMins >= startMins && currentTotalMins <= endMins;
-  } else {
-    // Overnight shift: e.g. 22:00 to 06:00
-    return currentTotalMins >= startMins || currentTotalMins <= endMins;
-  }
+  // We now use doctor_schedules for specific time slots.
+  // The global 'isAvailable' toggle acts as a master switch (e.g., doctor is on leave/paused).
+  return isAvailable;
 }
