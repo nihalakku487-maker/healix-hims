@@ -236,8 +236,8 @@ const Index = () => {
                       <p className="text-2xl font-black text-gray-900">{featuredWait}<span className="text-sm font-medium text-gray-500 ml-1">mins</span></p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 mb-0.5">Queue Position</p>
-                      <p className="text-2xl font-black text-gray-900">#{featuredQueue > 0 ? featuredQueue + 1 : 1}</p>
+                      <p className="text-xs text-gray-500 mb-0.5">In Queue</p>
+                      <p className="text-2xl font-black text-gray-900">{featuredQueue}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#F0FDF4' }}>
