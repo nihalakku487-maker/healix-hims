@@ -6,6 +6,17 @@ import { MOCK_DOCTORS } from "@/lib/mockData";
 import { getTodayISTDateString } from "@/lib/ist";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+
+const SB_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SB_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+async function restGet(path: string) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}`, Accept: 'application/json' },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
 import {
   Activity, Users, CheckCircle, XCircle, Clock, TrendingUp,
   TrendingDown, BarChart2, ArrowLeft, RefreshCw, AlertTriangle,
@@ -76,15 +87,14 @@ export default function HospitalAnalytics() {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
     const from = sevenDaysAgo.toISOString().slice(0, 10);
 
-    const { data, error } = await supabase
-      .from("bookings")
-      .select("*")
-      .gte("booking_date", from)
-      .lte("booking_date", selectedDate)
-      .order("created_at", { ascending: true });
-
-    if (error) toast.error("Failed to load analytics data");
-    else setBookings((data as Booking[]) || []);
+    try {
+      const data = await restGet(
+        `bookings?booking_date=gte.${from}&booking_date=lte.${selectedDate}&order=created_at.asc`
+      );
+      setBookings(Array.isArray(data) ? (data as Booking[]) : []);
+    } catch (err: any) {
+      toast.error("Failed to load analytics data", { description: err?.message });
+    }
     setLoading(false);
     setLastRefresh(new Date());
   };

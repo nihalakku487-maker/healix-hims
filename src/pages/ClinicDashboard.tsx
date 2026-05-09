@@ -13,6 +13,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MOCK_DOCTORS } from '@/lib/mockData';
 
+const SB_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SB_ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
+async function restPost(table: string, body: object) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SB_ANON,
+      Authorization: `Bearer ${SB_ANON}`,
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || res.statusText); }
+}
+
+async function restPatch(table: string, id: string, body: object) {
+  const res = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SB_ANON,
+      Authorization: `Bearer ${SB_ANON}`,
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.message || res.statusText); }
+}
+
 function getNowISTHoursMinutes(): { hours24: number; minutes: number } {
   const ist = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
   const timePart = ist.split(', ')[1] ?? '';
@@ -136,39 +167,34 @@ const ClinicDashboard = () => {
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const timeSlot = `${h}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 
-    const { error } = await supabase.from('bookings').insert({
-      patient_name: walkInName.trim(),
-      phone: walkInPhone.trim() || 'Walk-in',
-      time_slot: timeSlot,
-      token_number: tokenData,
-      booking_date: getTodayISTDateString(),
-      doctor_id: walkInDoctor,
-      hospital_id: 'jeevodaya',
-      department_id: doc?.departmentId,
-      status: 'waiting'
-    });
-
-    if (error) {
-      toast.error('Failed to add patient');
-    } else {
+    try {
+      await restPost('bookings', {
+        patient_name: walkInName.trim(),
+        phone: walkInPhone.trim() || 'Walk-in',
+        time_slot: timeSlot,
+        token_number: tokenData,
+        booking_date: getTodayISTDateString(),
+        doctor_id: walkInDoctor,
+        hospital_id: 'jeevodaya',
+        department_id: doc?.departmentId,
+        status: 'waiting',
+      });
       toast.success('Walk-in patient added');
       setWalkInName('');
       setWalkInPhone('');
       setShowWalkIn(false);
+    } catch (err: any) {
+      toast.error('Failed to add patient', { description: err?.message });
     }
     setAdding(false);
   };
 
   const handleStatusChange = async (bookingId: string, newStatus: Booking['status'], currentStatus: Booking['status'], label: string) => {
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: newStatus })
-      .eq('id', bookingId);
-
-    if (error) {
-      toast.error('Failed to update');
-    } else {
+    try {
+      await restPatch('bookings', bookingId, { status: newStatus });
       setLastAction({ bookingId, previousStatus: currentStatus, label });
+    } catch (err: any) {
+      toast.error('Failed to update', { description: err?.message });
     }
   };
 
@@ -180,19 +206,14 @@ const ClinicDashboard = () => {
     handleStatusChange(bookingId, 'no-show', currentStatus, 'No Show');
   };
 
-
   const handleUndo = async () => {
     if (!lastAction) return;
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: lastAction.previousStatus })
-      .eq('id', lastAction.bookingId);
-
-    if (error) {
-      toast.error('Failed to undo');
-    } else {
+    try {
+      await restPatch('bookings', lastAction.bookingId, { status: lastAction.previousStatus });
       toast.success(`Undid: ${lastAction.label}`);
       setLastAction(null);
+    } catch (err: any) {
+      toast.error('Failed to undo', { description: err?.message });
     }
   };
 
