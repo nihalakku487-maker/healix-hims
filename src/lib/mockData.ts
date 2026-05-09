@@ -67,7 +67,7 @@ export const MOCK_DEPARTMENTS: Department[] = [
 export const MOCK_HOSPITALS: Hospital[] = [
   {
     id: "jeevodaya",
-    name: "Jeevodaya Mission Hospital",
+    name: "Sastha Healthcare & Wellness Center",
     address: "10/1163, Ottupara, Kumaranellur, Wadakkanchery, Thrissur, Kerala, 680590",
     image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop",
     rating: 4.9,

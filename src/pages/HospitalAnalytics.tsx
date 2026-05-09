@@ -165,7 +165,7 @@ export default function HospitalAnalytics() {
             </div>
             <div>
               <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Hospital Analytics</h1>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Jeevodaya Mission Hospital</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sastha Healthcare & Wellness Center</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

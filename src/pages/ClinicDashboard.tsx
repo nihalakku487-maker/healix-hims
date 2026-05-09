@@ -214,7 +214,7 @@ const ClinicDashboard = () => {
               <Activity strokeWidth={2.5} size={20} />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Jeevodaya Mission Hospital</h1>
+              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight">Sastha Healthcare & Wellness Center</h1>
               <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Front Desk Check-In</p>
             </div>
           </div>

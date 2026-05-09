@@ -244,7 +244,7 @@ export default function DoctorDashboard() {
               <Activity strokeWidth={2.5} size={18} />
             </div>
             <div>
-              <p className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Jeevodaya Mission Hospital</p>
+              <p className="text-base sm:text-xl font-extrabold text-slate-800 tracking-tight leading-tight">Sastha Healthcare & Wellness Center</p>
               <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Workspace</p>
             </div>
           </div>

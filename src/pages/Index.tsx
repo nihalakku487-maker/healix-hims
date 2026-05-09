@@ -20,6 +20,7 @@ const Index = () => {
 
   const [queueCounts, setQueueCounts] = useState<Record<string, number>>({});
   const [doctorAvailability, setDoctorAvailability] = useState<Record<string, any>>({});
+  const [hasScheduleToday, setHasScheduleToday] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchQueues = async () => {
@@ -54,10 +55,22 @@ const Index = () => {
           headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` }
         });
         const data = await res.json();
-        if (!Array.isArray(data)) return;
-        const avails: Record<string, any> = {};
-        data.forEach((d: any) => { avails[d.doctor_id] = d; });
-        setDoctorAvailability(avails);
+        if (Array.isArray(data)) {
+          const avails: Record<string, any> = {};
+          data.forEach((d: any) => { avails[d.doctor_id] = d; });
+          setDoctorAvailability(avails);
+        }
+
+        const today = getTodayISTDateString();
+        const schedRes = await fetch(`${SB_URL}/rest/v1/doctor_schedules?schedule_date=eq.${today}&select=doctor_id`, {
+          headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` }
+        });
+        const schedData = await schedRes.json();
+        if (Array.isArray(schedData)) {
+          const schedMap: Record<string, boolean> = {};
+          schedData.forEach((s: any) => { schedMap[s.doctor_id] = true; });
+          setHasScheduleToday(schedMap);
+        }
       } catch (err) {
         console.error('fetchAvailability error', err);
       }
@@ -69,6 +82,7 @@ const Index = () => {
     const subs = supabase.channel('home-queue-watch')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, fetchQueues)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'doctor_settings' }, fetchAvailability)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'doctor_schedules' }, fetchAvailability)
       .subscribe();
 
     return () => { supabase.removeChannel(subs); };
@@ -96,7 +110,7 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
             >
-              <p className="mediq-label text-emerald-400 mb-4 tracking-widest text-xs sm:text-sm">JEEVODAYA MISSION HOSPITAL</p>
+              <p className="mediq-label text-emerald-400 mb-4 tracking-widest text-xs sm:text-sm">SASTHA HEALTHCARE & WELLNESS CENTER</p>
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] text-white mb-4 sm:mb-6" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Healthcare,{' '}
                 <span className="text-emerald-400">simplified</span>{' '}
@@ -311,7 +325,8 @@ const Index = () => {
             {doctors[0] && (() => {
               const doc = doctors[0];
               const av = doctorAvailability[doc.id];
-              const isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '00:00', av.end_time || '23:59') : true;
+              let isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '00:00', av.end_time || '23:59') : true;
+              if (!hasScheduleToday[doc.id]) isAvail = false;
               return (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -366,7 +381,8 @@ const Index = () => {
               <div className="grid sm:grid-cols-2 gap-4">
                 {doctors.slice(1).map((doc, i) => {
                   const av = doctorAvailability[doc.id];
-                  const isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '00:00', av.end_time || '23:59') : true;
+                  let isAvail = av ? isDoctorAvailableNow(av.is_available ?? true, av.start_time || '00:00', av.end_time || '23:59') : true;
+                  if (!hasScheduleToday[doc.id]) isAvail = false;
                   return (
                     <motion.div
                       key={doc.id}
@@ -493,7 +509,7 @@ const Index = () => {
               <div className="rounded-3xl overflow-hidden shadow-2xl" style={{ height: 'clamp(280px, 50vw, 480px)' }}>
                 <img
                   src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop"
-                  alt="Jeevodaya Mission Hospital"
+                  alt="Sastha Healthcare & Wellness Center"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />

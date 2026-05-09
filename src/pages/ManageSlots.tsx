@@ -175,17 +175,24 @@ export default function ManageSlots() {
     }
   };
 
-  /** Step 2: Confirm and execute cancellation */
   const handleDayOffConfirm = async () => {
     setMarkingDayOff(true);
     try {
+      // 1. Cancel active bookings
       const cancelled = await cancelDayBookings(doctorId, selectedDate);
+      
+      // 2. Delete all schedule blocks for this date so no new slots can be booked
+      await fetch(`${SB_URL}/rest/v1/doctor_schedules?doctor_id=eq.${doctorId}&schedule_date=eq.${selectedDate}`, {
+        method: 'DELETE',
+        headers: { apikey: SB_ANON, Authorization: `Bearer ${SB_ANON}` },
+      });
+
       setShowDayOffConfirm(false);
       setDayOffCount(null);
       toast.success(
         cancelled > 0
-          ? `${cancelled} booking${cancelled > 1 ? 's' : ''} cancelled`
-          : 'Day marked as off (no active bookings affected)',
+          ? `${cancelled} booking${cancelled > 1 ? 's' : ''} cancelled and schedule cleared`
+          : 'Day marked as off (schedule cleared)',
         { description: cancelled > 0 ? 'WhatsApp notifications will be sent to affected patients.' : undefined }
       );
       refetch();
