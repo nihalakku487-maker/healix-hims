@@ -15,6 +15,7 @@ import { getTodayISTDateString, getNowIST } from "@/lib/ist";
 import { isDoctorAvailableNow } from "@/lib/availability";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDoctorSlots } from "@/hooks/useDoctorSlots";
+import DatePicker from "@/components/DatePicker";
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -46,13 +47,15 @@ export default function BookSlot() {
   
   const [isAvail, setIsAvail] = useState<boolean>(true);
   const [selectedSlot, setSelectedSlot] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayISTDateString());
 
   const istNow = getNowIST();
   const currentMinsIST = (istNow.getHours() * 60) + istNow.getMinutes();
+  const todayIST = getTodayISTDateString();
   const { slots: doctorSlots, loading: slotsLoading } = useDoctorSlots({ 
     doctorId: doctor?.id, 
-    date: getTodayISTDateString(), 
-    currentMinsIST 
+    date: selectedDate, 
+    currentMinsIST: selectedDate === todayIST ? currentMinsIST : null 
   });
   const [bookingError, setBookingError] = useState<string | null>(null);
   const { user, profile } = useAuth();
@@ -62,7 +65,7 @@ export default function BookSlot() {
     if (!doctor) return;
     const fetchCount = async () => {
       try {
-        const res = await fetch(`${SB_URL}/rest/v1/bookings?doctor_id=eq.${doctor.id}&booking_date=eq.${getTodayISTDateString()}&status=in.(waiting,in-progress)&select=id`, {
+        const res = await fetch(`${SB_URL}/rest/v1/bookings?doctor_id=eq.${doctor.id}&booking_date=eq.${selectedDate}&status=in.(waiting,in-progress)&select=id`, {
           headers: { apikey: SB_ANON_KEY, Authorization: `Bearer ${SB_ANON_KEY}` }
         });
         const data = await res.json();
@@ -89,7 +92,7 @@ export default function BookSlot() {
     };
     fetchCount();
     fetchSetting();
-    const sub = supabase.channel('bookslot-queue')
+    const sub = supabase.channel(`bookslot-queue-${selectedDate}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, fetchCount)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'doctor_settings', filter: `doctor_id=eq.${doctor.id}` }, payload => {
           const row = payload.new as any;
@@ -100,7 +103,7 @@ export default function BookSlot() {
       })
       .subscribe();
     return () => { supabase.removeChannel(sub); };
-  }, [doctor?.id]);
+  }, [doctor?.id, selectedDate]);
 
   if (!doctor) {
     return (
@@ -140,7 +143,7 @@ export default function BookSlot() {
     let insertData: any[] | null = null;
     try {
       toast.success("Starting booking process...");
-      const payloadDate = getTodayISTDateString();
+      const payloadDate = selectedDate;
       const payloadTime = typeof selectedSlot === 'string' ? selectedSlot : (selectedSlot as any).label;
       
       const bookingPayload: any = {
@@ -394,15 +397,23 @@ export default function BookSlot() {
                     </RadioGroup>
                   </div>
 
+                  {/* Select Date */}
+                  {isAvail && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">2. Select Date</h3>
+                      <DatePicker selectedDate={selectedDate} onDateSelect={(d) => { setSelectedDate(d); setSelectedSlot(""); }} days={14} />
+                    </div>
+                  )}
+
                   {/* Available Slots */}
                   {isAvail && (
                     <div>
-                      <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">2. Select Time Slot</h3>
+                      <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">3. Select Time Slot</h3>
                       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                         {slotsLoading ? (
                           <div className="col-span-full text-slate-500 text-sm">Loading slots...</div>
                         ) : doctorSlots.length === 0 ? (
-                          <div className="col-span-full text-slate-500 text-sm">No schedule blocks found for today.</div>
+                          <div className="col-span-full text-slate-500 text-sm">No schedule blocks found for {selectedDate === todayIST ? 'today' : 'this date'}.</div>
                         ) : (
                           doctorSlots.map((slot) => {
                             const disabled = slot.isPast || slot.isFull;
@@ -430,7 +441,7 @@ export default function BookSlot() {
                   {/* Patient Details */}
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">
-                      {isAvail ? "3." : "2."} Patient Information
+                      {isAvail ? "4." : "2."} Patient Information
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -447,7 +458,7 @@ export default function BookSlot() {
                   {/* Secure Medical Records feature (from LocDoc) */}
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">
-                      {isAvail ? "4." : "3."} Share Medical Records (Optional)
+                      {isAvail ? "5." : "3."} Share Medical Records (Optional)
                     </h3>
                     <p className="text-sm text-slate-500 mb-4">Securely share previous prescriptions or diagnostic reports with {doctor.name} before the consultation.</p>
                     <Label
