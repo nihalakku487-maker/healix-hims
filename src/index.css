@@ -1,175 +1,302 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+:root {
+  /* Light Biophilic Premium Theme - Forest Green Headers, Pure White Panels, Clean Mint Accents */
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-heading: 'Outfit', system-ui, sans-serif;
 
-@layer base {
-  :root {
-    /* Background: clean white */
-    --background: 0 0% 100%;
-    --foreground: 160 10% 10%;
+  /* HSL Color Palette Overhaul (Light Theme) */
+  --bg-primary: #f8fafc;        /* Soft, light off-white background */
+  --bg-secondary: #ffffff;      /* Pure white for panels & containers */
+  --bg-tertiary: #f1f5f9;       /* Light slate grey active backdrops */
+  --bg-glass: rgba(255, 255, 255, 0.95); /* Semi-transparent white frosted glass */
+  
+  --accent-blue: #0284c7;       /* Medical slate blue */
+  --accent-cyan: #00e0b3;       /* Exact MediQ mint teal */
+  --accent-emerald: #059669;    /* Deep healthy emerald green */
+  --accent-amber: #d97706;      /* Warnings / Anticipated Alerts (Gold) */
+  --accent-rose: #e11d48;       /* Critical warnings */
+  --accent-purple: #7c3aed;     /* Diagnostics */
 
-    --card: 0 0% 100%;
-    --card-foreground: 160 10% 10%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 160 10% 10%;
-
-    /* Primary: forest green from the Stitch hero */
-    --primary: 158 54% 20%;
-    --primary-foreground: 0 0% 100%;
-
-    /* Secondary: light greenish tint */
-    --secondary: 160 20% 96%;
-    --secondary-foreground: 160 10% 20%;
-
-    --muted: 160 15% 95%;
-    --muted-foreground: 160 8% 48%;
-
-    /* Accent: teal/emerald from the "simplified" highlight */
-    --accent: 160 70% 40%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 160 15% 88%;
-    --input: 160 15% 88%;
-    --ring: 158 54% 20%;
-
-    --radius: 0.75rem;
-
-    --success: 158 60% 38%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --sidebar-background: 160 10% 10%;
-    --sidebar-foreground: 0 0% 92%;
-    --sidebar-primary: 160 70% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 160 15% 18%;
-    --sidebar-accent-foreground: 0 0% 92%;
-    --sidebar-border: 160 10% 16%;
-    --sidebar-ring: 160 70% 40%;
-  }
-
-  .dark {
-    --background: 160 15% 6%;
-    --foreground: 160 10% 92%;
-
-    --card: 160 12% 8%;
-    --card-foreground: 160 10% 92%;
-
-    --popover: 160 12% 8%;
-    --popover-foreground: 160 10% 92%;
-
-    --primary: 160 70% 44%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 160 10% 14%;
-    --secondary-foreground: 160 10% 92%;
-
-    --muted: 160 10% 14%;
-    --muted-foreground: 160 8% 58%;
-
-    --accent: 160 70% 44%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 160 10% 16%;
-    --input: 160 10% 16%;
-    --ring: 160 70% 44%;
-
-    --sidebar-background: 160 15% 6%;
-    --sidebar-foreground: 160 10% 92%;
-    --sidebar-primary: 160 70% 44%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 160 12% 12%;
-    --sidebar-accent-foreground: 160 10% 92%;
-    --sidebar-border: 160 10% 14%;
-    --sidebar-ring: 160 70% 44%;
-  }
+  --text-primary: #092c1a;      /* Deepest forest green for primary headings */
+  --text-secondary: #334155;    /* Slate grey for regular text reading */
+  --text-muted: #64748b;        /* Muted labels & timestamps */
+  
+  --border-color: #e2e8f0;      /* Clean subtle borders */
+  --border-focus: #00e0b3;      /* Focus cyan outline */
+  --glow-shadow: 0 4px 20px rgba(0, 224, 179, 0.1);
+  --glass-shadow: 0 10px 30px rgba(9, 44, 26, 0.05); /* Soft pine grey shadow */
+  
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 30px;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Stitch Design Custom Classes */
-@layer utilities {
-  /* Hero dark forest green bg — animated gradient */
-  .mediq-hero-bg {
-    background: linear-gradient(135deg, #0D2B20 0%, #1B4332 50%, #144D35 100%);
-    background-size: 300% 300%;
-    animation: heroGradientShift 12s ease infinite;
-  }
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+  min-height: 100vh;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(0, 224, 179, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(5, 150, 105, 0.03) 0%, transparent 45%);
+  overflow-x: hidden;
+}
 
-  @keyframes heroGradientShift {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-  /* Teal/emerald accent used for highlighted text */
-  .mediq-accent {
-    color: #2DD4BF;
-  }
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 
-  /* Subtle glassmorphism card */
-  .mediq-glass {
-    background: rgba(255, 255, 255, 0.08);
-    -webkit-backdrop-filter: blur(20px);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-  }
+/* Common Layouts & Classes */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-md);
+  transition: var(--transition-normal);
+  color: var(--text-secondary);
+}
 
-  /* Floating live status card */
-  .mediq-status-card {
-    background: rgba(255, 255, 255, 0.95);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-  }
+.glass-panel:hover {
+  border-color: #cbd5e1;
+}
 
-  /* Expertise label */
-  .mediq-label {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
+.glow-cyan {
+  box-shadow: 0 4px 20px rgba(0, 224, 179, 0.15);
+  border-color: var(--accent-cyan);
+}
 
-  /* Dark teal CTA card */
-  .mediq-cta-card {
-    background: linear-gradient(135deg, #134E3A 0%, #0D3B2C 100%);
-  }
+.glow-emerald {
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.15);
+  border-color: var(--accent-emerald);
+}
 
-  .mediq-nav-btn {
-    background: #1B4332;
-    color: white;
-    font-weight: 600;
-    font-size: 0.875rem;
-    padding: 0.5rem 1.25rem;
-    border-radius: 9999px;
-    transition: background 0.2s;
-  }
+.glow-rose {
+  box-shadow: 0 4px 20px rgba(225, 29, 72, 0.15);
+  border-color: var(--accent-rose);
+}
 
-  .mediq-nav-btn:hover {
-    background: #2D6A4F;
-  }
+/* Animations */
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.01); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-float {
+  animation: float 4s infinite ease-in-out;
+}
+
+/* Custom UI Elements */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge-cyan {
+  background: #f0fdf4;
+  color: var(--accent-emerald);
+  border: 1px solid #dcfce7;
+}
+
+.badge-emerald {
+  background: #ecfdf5;
+  color: var(--accent-emerald);
+  border: 1px solid #d1fae5;
+}
+
+.badge-amber {
+  background: #fffbef;
+  color: var(--accent-amber);
+  border: 1px solid #fef3c7;
+}
+
+.badge-rose {
+  background: #fff1f2;
+  color: var(--accent-rose);
+  border: 1px solid #ffe4e6;
+}
+
+.badge-purple {
+  background: #f5f3ff;
+  color: var(--accent-purple);
+  border: 1px solid #ddd6fe;
+}
+
+/* Form Controls */
+.form-input, .form-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  transition: var(--transition-fast);
+  outline: none;
+}
+
+.form-input:focus, .form-select:focus {
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.15);
+  background: #ffffff;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Beautiful Custom Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  border: 1px solid transparent;
+  outline: none;
+}
+
+.btn-cyan {
+  background: var(--accent-cyan);
+  color: var(--text-primary);
+}
+.btn-cyan:hover {
+  background: #00cfa5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(0, 224, 179, 0.25);
+}
+
+.btn-emerald {
+  background: var(--accent-emerald);
+  color: #ffffff;
+}
+.btn-emerald:hover {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(5, 150, 105, 0.25);
+}
+
+.btn-rose {
+  background: var(--accent-rose);
+  color: #ffffff;
+}
+.btn-rose:hover {
+  background: #be123c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(225, 29, 72, 0.25);
+}
+
+.btn-glass {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: var(--text-primary);
+}
+.btn-glass:hover {
+  background: #e2e8f0;
+}
+
+.btn-glass.active {
+  background: rgba(0, 224, 179, 0.1);
+  border-color: var(--accent-cyan);
+  color: var(--accent-emerald);
+  font-weight: 700;
+}
+
+.btn-disabled {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Medical Custom Icons Background */
+.icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  color: var(--accent-emerald);
+}
+
+/* Headers style */
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  color: var(--text-primary);
 }
