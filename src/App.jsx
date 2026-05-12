@@ -4,8 +4,23 @@ import {
   Plus, Search, Shield, Zap, Wifi, WifiOff, Bell, 
   Trash2, FileText, CheckCircle, Smartphone, Monitor,
   Layers, Package, AlertTriangle, ShieldCheck, TrendingUp, Clock,
-  ShieldAlert, Store
+  ShieldAlert, Store, MessageSquare, RotateCcw, Ticket,
+  Save, Printer, X, CreditCard
 } from 'lucide-react';
+
+// Modular Imports for Expanded Scenarios
+import OpdModule from './components/OpdModule';
+import IpdModule from './components/IpdModule';
+import OtModule from './components/OtModule';
+import InsuranceModule from './components/InsuranceModule';
+import HealthPackageModule from './components/HealthPackageModule';
+import ReferralModule from './components/ReferralModule';
+import LisModule from './components/LisModule';
+
+// Custom Hooks
+import { useBarcodeScanner } from './hooks/useBarcodeScanner';
+
+
 
 // Simulated database initial data
 const initialPatients = [
@@ -36,6 +51,7 @@ export default function App() {
     setLoginError('');
     
     const credentials = [
+      { user: 'superadmin', pass: 'admin', role: 'SUPER_ADMIN', defaultTab: 'dashboard' },
       { user: 'admin', pass: 'admin', role: 'SUPER_ADMIN', defaultTab: 'dashboard' },
       { user: 'op_clerk', pass: 'op', role: 'OP_STAFF', defaultTab: 'op' },
       { user: 'er_doc', pass: 'er', role: 'ER_STAFF', defaultTab: 'er' },
@@ -89,6 +105,31 @@ export default function App() {
   const [customIpChargeAmount, setCustomIpChargeAmount] = useState('');
 
   // Interconnected Department Queues (Pub/Sub Event Simulation)
+  const [labSubTab, setLabSubTab] = useState('booking'); // 'queue' | 'booking'
+  const [labBookingPatient, setLabBookingPatient] = useState({ 
+    caseId: '2026-0044', patientId: 'UHID-2026-0044', date: '2026-05-11', 
+    gender: 'Male', mobile: '', name: '', ageYear: '', ageMonth: '', ageDays: '', 
+    refBy: 'Dr. Visakh', email: '', address: '' 
+  });
+  const [labBookingTests, setLabBookingTests] = useState([
+    { id: '12', name: 'BLOOD COMPLETE TEST PROFILE', price: 300, discountPercent: 0, discountAmount: 0, taxPercent: 0, taxAmount: 0 },
+    { id: '5', name: 'BIO CHEMISTRY TEST PROFILE', price: 500, discountPercent: 0, discountAmount: 0, taxPercent: 0, taxAmount: 0 },
+    { id: '11', name: 'COMPLETE URINE TEST PROFILE', price: 100, discountPercent: 0, discountAmount: 0, taxPercent: 0, taxAmount: 0 }
+  ]);
+  const labMasterTests = [
+    { id: '12', name: 'BLOOD COMPLETE TEST PROFILE', price: 300 },
+    { id: '5', name: 'BIO CHEMISTRY TEST PROFILE', price: 500 },
+    { id: '11', name: 'COMPLETE URINE TEST PROFILE', price: 100 },
+    { id: '78', name: 'Test', price: 2000 },
+    { id: '30', name: 'SPECIAL CHEMISTRY REPORT', price: 0 },
+    { id: '38', name: 'RENAL FUNCTION TEST PROFILE', price: 450 },
+    { id: '14', name: 'MISCELLINIOUS TEST PROFILE', price: 400 },
+    { id: '15', name: 'CARDIAC TEST PROFILE', price: 100 },
+    { id: '16', name: 'LIVER FUNCTION TEST PROFILE', price: 100 }
+  ];
+  const [labBookingPaid, setLabBookingPaid] = useState(0);
+  const [labBookingGlobalDiscount, setLabBookingGlobalDiscount] = useState(0);
+
   const [labOrders, setLabOrders] = useState([
     { id: "LAB-101", uhid: "UHID-9844", patientName: "Sunil Kumar", testName: "Complete Blood Count (CBC)", status: "Pending", timestamp: "Today, 11:15 AM" },
     { id: "LAB-102", uhid: "UHID-2104", patientName: "Anjali Sharma", testName: "Liver Function Test (LFT)", status: "Pending", timestamp: "Today, 11:30 AM" }
@@ -127,12 +168,12 @@ export default function App() {
   });
 
   const [inventoryList, setInventoryList] = useState([
-    { id: "MED-001", name: "Pantocid D 40mg", generic: "Pantoprazole + Domperidone", stock: 120, minThreshold: 50, location: "Aisle 3-A", tempSensitive: false, batch: "B-PAN402", expiry: "2027-12", type: "Tablet" },
-    { id: "MED-002", name: "Paracetamol 650mg", generic: "Acetaminophen", stock: 8, minThreshold: 100, location: "Aisle 1-B", tempSensitive: false, batch: "B-PARA901", expiry: "2026-06", type: "Tablet" },
-    { id: "MED-003", name: "Amoxicillin 500mg", generic: "Penicillin Antibiotic", stock: 15, minThreshold: 40, location: "Aisle 2-C", tempSensitive: false, batch: "B-AMX105", expiry: "2026-05", type: "Capsule" },
-    { id: "MED-004", name: "Insulin Glargine 100 IU", generic: "Long-acting Insulin Vials", stock: 45, minThreshold: 15, location: "Cold-Fridge B", tempSensitive: true, tempCelsius: 3.8, batch: "B-INS002", expiry: "2026-08", type: "Vial" },
-    { id: "MED-005", name: "Sterile Dressings (M)", generic: "Wound Dressing Kit", stock: 85, minThreshold: 20, location: "Cabinet 5", tempSensitive: false, batch: "B-DRS881", expiry: "2029-01", type: "Consumable" },
-    { id: "MED-006", name: "O-Negative Blood Bag", generic: "Whole Blood STAT Bags", stock: 24, minThreshold: 8, location: "Blood-Fridge A", tempSensitive: true, tempCelsius: 4.1, batch: "B-BLD904", expiry: "2026-05", type: "Consumable" }
+    { id: "MED-001", barcode: "89001001", name: "Pantocid D 40mg", generic: "Pantoprazole + Domperidone", stock: 120, minThreshold: 50, location: "Aisle 3-A", tempSensitive: false, batch: "B-PAN402", expiry: "2027-12", type: "Tablet" },
+    { id: "MED-002", barcode: "89001002", name: "Paracetamol 650mg", generic: "Acetaminophen", stock: 8, minThreshold: 100, location: "Aisle 1-B", tempSensitive: false, batch: "B-PARA901", expiry: "2026-06", type: "Tablet" },
+    { id: "MED-003", barcode: "89001003", name: "Amoxicillin 500mg", generic: "Penicillin Antibiotic", stock: 15, minThreshold: 40, location: "Aisle 2-C", tempSensitive: false, batch: "B-AMX105", expiry: "2026-05", type: "Capsule" },
+    { id: "MED-004", barcode: "89001004", name: "Insulin Glargine 100 IU", generic: "Long-acting Insulin Vials", stock: 45, minThreshold: 15, location: "Cold-Fridge B", tempSensitive: true, tempCelsius: 3.8, batch: "B-INS002", expiry: "2026-08", type: "Vial" },
+    { id: "MED-005", barcode: "89001005", name: "Sterile Dressings (M)", generic: "Wound Dressing Kit", stock: 85, minThreshold: 20, location: "Cabinet 5", tempSensitive: false, batch: "B-DRS881", expiry: "2029-01", type: "Consumable" },
+    { id: "MED-006", barcode: "89001006", name: "O-Negative Blood Bag", generic: "Whole Blood STAT Bags", stock: 24, minThreshold: 8, location: "Blood-Fridge A", tempSensitive: true, tempCelsius: 4.1, batch: "B-BLD904", expiry: "2026-05", type: "Consumable" }
   ]);
 
   const [inventorySearch, setInventorySearch] = useState('');
@@ -150,6 +191,162 @@ export default function App() {
   const [newMedExpiry, setNewMedExpiry] = useState('2027-12');
   const [newMedTempSensitive, setNewMedTempSensitive] = useState(false);
   const [newMedTempCelsius, setNewMedTempCelsius] = useState(4.0);
+
+  // Ecosystem expansion states for added departments
+  const [billingSubTab, setBillingSubTab] = useState('ledger');
+  const [inventorySubTab, setInventorySubTab] = useState('overview');
+  const [bulkSmsMsg, setBulkSmsMsg] = useState('');
+
+  const [adminSubTab, setAdminSubTab] = useState('analytics'); // 'analytics' | 'masters' | 'discharge' | 'feedback' | 'compliance'
+  const [feedbackList, setFeedbackList] = useState([
+    { id: 'FB-001', name: 'Sunil Kumar', patientId: 'UHID-9844', mobile: '9876543210', date: '2026-05-10', rating: 5, details: 'Excellent doctors and fast lab process.' },
+    { id: 'FB-002', name: 'Rekha Nair', patientId: 'UHID-5501', mobile: '9988776655', date: '2026-05-09', rating: 3, details: 'Long wait time at the pharmacy.' }
+  ]);
+  const [auditLogs, setAuditLogs] = useState([
+    { id: 'AUD-991', time: '10:42 AM', user: 'Dr. Visakh (OP_STAFF)', action: 'Edited Prescription for UHID-9844', ip: '192.168.1.104', type: 'Clinical' },
+    { id: 'AUD-992', time: '11:05 AM', user: 'System (Automated)', action: 'Dispatched CODE RED alerts for Trauma ER', ip: 'internal_worker', type: 'System' }
+  ]);
+  const [dischargeClearance, setDischargeClearance] = useState({ pharmacy: false, billing: false, nursing: false });
+  const [activeDischargePatient, setActiveDischargePatient] = useState('UHID-2104');
+
+  // ==========================================
+  // 🏥 SPRINT 1: OPD QUEUE ENGINE
+  // ==========================================
+  const [opQueue, setOpQueue] = useState([
+    { tokenNo: 'OP-001', uhid: 'UHID-9844', name: 'Sunil Kumar', age: 42, gender: 'Male', doctor: 'Dr. Visakh', status: 'In Consultation', time: '11:00 AM', isFollowUp: false },
+    { tokenNo: 'OP-002', uhid: 'UHID-5501', name: 'Rekha Nair', age: 35, gender: 'Female', doctor: 'Dr. Susan', status: 'Waiting', time: '11:20 AM', isFollowUp: true },
+    { tokenNo: 'OP-003', uhid: 'UHID-5502', name: 'Jomon Philip', age: 58, gender: 'Male', doctor: 'Dr. Vinod', status: 'Waiting', time: '11:45 AM', isFollowUp: false },
+  ]);
+  const [tokenCounter, setTokenCounter] = useState(4);
+  const [opQueueSubTab, setOpQueueSubTab] = useState('queue'); // 'queue' | 'register' | 'consult'
+  const [selectedConsultToken, setSelectedConsultToken] = useState(null);
+  const [consultChiefComplaint, setConsultChiefComplaint] = useState('');
+  const [consultDiagnosis, setConsultDiagnosis] = useState('');
+  const [consultNotes, setConsultNotes] = useState('');
+  const [consultOrderedServices, setConsultOrderedServices] = useState([]);
+  const [consultPrescription, setConsultPrescription] = useState('');
+
+  // ==========================================
+  // 🛏️ SPRINT 2: IPD ADMISSION MODULE
+  // ==========================================
+  const [ipAdmissions, setIpAdmissions] = useState([
+    { admId: 'ADM-001', uhid: 'UHID-2104', name: 'Anjali Sharma', ward: 'Private', bed: '304-A', admDate: '2026-05-09', doctor: 'Dr. Geetha RMO', diagnosis: 'Viral Fever', deposit: 5000, status: 'Active', notes: [] },
+    { admId: 'ADM-002', uhid: 'UHID-4512', name: 'Mariamma Mathew', ward: 'ICU', bed: 'ICU-04', admDate: '2026-05-08', doctor: 'Dr. Vinod', diagnosis: 'Cardiac Arrest (Post-resuscitation)', deposit: 20000, status: 'Active', notes: [] },
+  ]);
+  const [ipAdmSubTab, setIpAdmSubTab] = useState('list'); // 'list' | 'admit' | 'ward_round' | 'discharge'
+  const [newAdmName, setNewAdmName] = useState('');
+  const [newAdmAge, setNewAdmAge] = useState('');
+  const [newAdmGender, setNewAdmGender] = useState('Male');
+  const [newAdmWard, setNewAdmWard] = useState('General');
+  const [newAdmBed, setNewAdmBed] = useState('');
+  const [newAdmDoctor, setNewAdmDoctor] = useState('Dr. Visakh');
+  const [newAdmDiagnosis, setNewAdmDiagnosis] = useState('');
+  const [newAdmDeposit, setNewAdmDeposit] = useState('');
+  const [newAdmReferFrom, setNewAdmReferFrom] = useState('');
+  const [selectedAdmission, setSelectedAdmission] = useState(null);
+  const [wardRoundNote, setWardRoundNote] = useState('');
+  const [dischargeSummaryText, setDischargeSummaryText] = useState('');
+  const [dischargeRx, setDischargeRx] = useState('');
+
+  // ==========================================
+  // 🔪 SPRINT 3: OT / SURGERY MODULE
+  // ==========================================
+  const [otSchedule, setOtSchedule] = useState([
+    { otId: 'OT-001', uhid: 'UHID-4512', name: 'Mariamma Mathew', surgery: 'Coronary Angioplasty', surgeon: 'Dr. Vinod', anaesthetist: 'Dr. Rajan', otDate: '2026-05-11', otTime: '08:00', status: 'Scheduled', preOpDone: false, consent: true },
+  ]);
+  const [otSubTab, setOtSubTab] = useState('board'); // 'board' | 'schedule'
+  const [newOtPatient, setNewOtPatient] = useState('');
+  const [newOtSurgery, setNewOtSurgery] = useState('');
+  const [newOtSurgeon, setNewOtSurgeon] = useState('Dr. Vinod');
+  const [newOtDate, setNewOtDate] = useState('');
+  const [newOtTime, setNewOtTime] = useState('08:00');
+
+  // ==========================================
+  // 📋 SPRINT 3: INTERNAL REFERRAL SYSTEM
+  // ==========================================
+  const [referralSlips, setReferralSlips] = useState([
+    { refId: 'REF-001', fromDept: 'General Medicine', toDept: 'Cardiology', uhid: 'UHID-9844', patientName: 'Sunil Kumar', reason: 'Chest pain, ECG abnormality', doctor: 'Dr. Visakh', status: 'Pending', time: '11:30 AM' },
+  ]);
+  const [refFromDept, setRefFromDept] = useState('General Medicine');
+  const [refToDept, setRefToDept] = useState('Cardiology');
+  const [refReason, setRefReason] = useState('');
+  const [refPatientUhid, setRefPatientUhid] = useState('');
+  const [refPatientName, setRefPatientName] = useState('');
+
+  // ==========================================
+  // 💳 SPRINT 4: INSURANCE / TPA DESK
+  // ==========================================
+  const [insuranceClaims, setInsuranceClaims] = useState([
+    { claimId: 'CLM-001', uhid: 'UHID-2104', patientName: 'Anjali Sharma', tpaName: 'Star Health', policyNo: 'SH-20240091', validity: '2027-03', preAuthStatus: 'Approved', preAuthAmt: 45000, copay: 2000, claimStatus: 'Open' },
+  ]);
+  const [insSubTab, setInsSubTab] = useState('list'); // 'list' | 'new'
+  const [newClaimUhid, setNewClaimUhid] = useState('');
+  const [newClaimPatient, setNewClaimPatient] = useState('');
+  const [newClaimTpa, setNewClaimTpa] = useState('Star Health');
+  const [newClaimPolicy, setNewClaimPolicy] = useState('');
+  const [newClaimValidity, setNewClaimValidity] = useState('');
+  const [newClaimAmt, setNewClaimAmt] = useState('');
+  const [newClaimCopay, setNewClaimCopay] = useState('');
+
+  // ==========================================
+  // 🏷️ BARCODE & SCANNER GLOBAL HANDLER
+  // ==========================================
+  const handleGlobalScan = (scannedCode) => {
+    addNotification("Barcode Detected", `Read code: ${scannedCode}`, "info");
+
+    // Try finding it in the inventory list
+    const matchedItem = inventoryList.find(item => item.barcode === scannedCode);
+    
+    if (matchedItem) {
+      // Focus navigation to Inventory Context to show user the hit
+      setActiveTab('inventory');
+      setInventorySearch(matchedItem.name); 
+      addNotification("Product Identified", `Matched ${matchedItem.name}. Loading Ledger...`, "success");
+    } else {
+      // Open creation wizards
+      addNotification("New Barcode", "Registry entry not found. Open registration wizard?", "warning");
+      setActiveTab('inventory');
+      setIsAddingMedicine(true);
+      setNewMedName(`Pending Name (${scannedCode})`); // Hint what barcode it was
+      setNewMedBatch(scannedCode); // Autopopulate batch/reference field with scan
+    }
+  };
+
+  // Register the listener
+  useBarcodeScanner(handleGlobalScan);
+
+
+  // ==========================================
+  // 🏋️ SPRINT 4: HEALTH PACKAGE MODULE
+  // ==========================================
+  const [healthPackages] = useState([
+    { pkgId: 'PKG-BASIC', name: 'Basic Health Screen', price: 999, tests: ['CBC', 'Urine Routine', 'Blood Sugar (F)', 'BP Check', 'BMI Assessment'] },
+    { pkgId: 'PKG-EXEC', name: 'Executive Health Package', price: 2499, tests: ['CBC', 'LFT', 'RFT', 'Lipid Profile', 'Thyroid (TSH)', 'Blood Sugar (F&PP)', 'ECG', 'Chest X-Ray', 'USG Abdomen', 'Ophthalmology Screen', 'Physician Consultation'] },
+    { pkgId: 'PKG-COMP', name: 'Comprehensive Wellness', price: 4999, tests: ['Full CBC + ESR', 'LFT', 'RFT', 'Lipid Profile', 'Thyroid Panel (T3/T4/TSH)', 'HbA1c', 'Vitamin D & B12', 'ECG', 'Echo', 'Chest X-Ray', 'USG Abdomen & Pelvis', 'Treadmill Test (TMT)', 'Ophthalmology', 'Dental Screen', 'Pulmonology (PFT)', 'Physician Consultation'] },
+  ]);
+  const [pkgBookings, setPkgBookings] = useState([]);
+  const [pkgSubTab, setPkgSubTab] = useState('catalog'); // 'catalog' | 'active'
+  const [pkgPatientName, setPkgPatientName] = useState('');
+  const [pkgPatientAge, setPkgPatientAge] = useState('');
+  const [selectedPkg, setSelectedPkg] = useState('PKG-EXEC');
+
+  // ==========================================
+  // 🚨 EXTREME SCENARIO & CRISIS PROTOCOLS STATE
+  // ==========================================
+  const [isCrisisMode, setIsCrisisMode] = useState(false);
+  const [quarantinedBatches, setQuarantinedBatches] = useState([]); // Stores batch numbers banned globally
+  const [crisisLogs, setCrisisLogs] = useState([]);
+
+  // ==========================================
+  // 📡 GLOBAL DEPARTMENTAL DISPATCH STATE
+  // ==========================================
+  const [dispatchQueue, setDispatchQueue] = useState([
+    { id: 1, sender: 'RECEPTION', target: 'LAB', type: 'STAT', msg: 'UHID-9844 Routine Vitals Sent', time: '09:15 AM' },
+    { id: 2, sender: 'PHARMACY', target: 'MMS', type: 'ROUTINE', msg: 'Calpol 650 stock crossing 20% threshold', time: '10:30 AM' }
+  ]);
+  const [activeEmergencyOverlay, setActiveEmergencyOverlay] = useState(null);
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
 
   const [erPatientName, setErPatientName] = useState('');
   const [triagePriority, setTriagePriority] = useState('Red');
@@ -413,6 +610,28 @@ export default function App() {
     handlePostCharge(bedsidePatient, "Nursing Vitals Monitoring", 100, "Nursing_Tablet");
   };
 
+  // Global dispatch handler
+  const sendDispatch = (target, msg, priority) => {
+    const newDispatch = {
+      id: Date.now(),
+      sender: activeTab.toUpperCase(),
+      target: target.toUpperCase(),
+      type: priority,
+      msg: msg,
+      time: new Date().toLocaleTimeString()
+    };
+    
+    setDispatchQueue(prev => [newDispatch, ...prev]);
+    addNotification(`Dispatch Sent`, `Transmission to ${target} successful.`, "info");
+
+    if(priority === 'STAT' || priority === 'CODE_BLUE') {
+      setActiveEmergencyOverlay(newDispatch);
+      // Log emergency cascade in crisis logs if present
+      setCrisisLogs(prev => [`[${new Date().toLocaleTimeString()}] EMERGENCY BROADCAST: From ${activeTab.toUpperCase()} -> ${target}. Body: ${msg}`, ...prev]);
+    }
+    setIsDispatchModalOpen(false);
+  };
+
   // Simulated total revenue
   const totalRevenue = chargeLog.reduce((sum, item) => sum + item.amount, 0) + offlineQueue.reduce((sum, item) => sum + item.amount, 0);
 
@@ -460,7 +679,7 @@ export default function App() {
 
             {loginError && (
               <p style={{ fontSize: '0.8rem', color: 'var(--accent-rose)', fontWeight: '600', textAlign: 'center', margin: 0 }}>
-                ⚠️ {loginError}
+                {loginError}
               </p>
             )}
 
@@ -473,26 +692,26 @@ export default function App() {
           <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '32px', paddingTop: '20px', textAlign: 'left' }}>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pre-configured Privileges:</span>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              <div onClick={() => { setLoginUser('admin'); setLoginPass('admin'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>👑 Central Admin</strong><br/>user: `admin` | pass: `admin`
+              <div onClick={() => { setLoginUser('superadmin'); setLoginPass('admin'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                <strong>Super Admin</strong><br/>user: `superadmin` | pass: `admin`
               </div>
               <div onClick={() => { setLoginUser('op_clerk'); setLoginPass('op'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>🏥 OP Desk Clerk</strong><br/>user: `op_clerk` | pass: `op`
+                <strong>OP Desk Clerk</strong><br/>user: `op_clerk` | pass: `op`
               </div>
               <div onClick={() => { setLoginUser('er_doc'); setLoginPass('er'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>🚨 ER Commander</strong><br/>user: `er_doc` | pass: `er`
+                <strong>ER Commander</strong><br/>user: `er_doc` | pass: `er`
               </div>
               <div onClick={() => { setLoginUser('lab_tech'); setLoginPass('lab'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>🧪 Lab Tech</strong><br/>user: `lab_tech` | pass: `lab`
+                <strong>Lab Tech</strong><br/>user: `lab_tech` | pass: `lab`
               </div>
               <div onClick={() => { setLoginUser('rad_tech'); setLoginPass('radiology'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>📡 Radiology Tech</strong><br/>user: `rad_tech` | pass: `radiology`
+                <strong>Radiology Tech</strong><br/>user: `rad_tech` | pass: `radiology`
               </div>
               <div onClick={() => { setLoginUser('pharmacist'); setLoginPass('pharmacy'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>💊 Pharmacist</strong><br/>user: `pharmacist` | pass: `pharmacy`
+                <strong>Pharmacist</strong><br/>user: `pharmacist` | pass: `pharmacy`
               </div>
               <div onClick={() => { setLoginUser('mms_admin'); setLoginPass('inventory'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                <strong>🏥 Stock MMS</strong><br/>user: `mms_admin` | pass: `inventory`
+                <strong>Stock MMS</strong><br/>user: `mms_admin` | pass: `inventory`
               </div>
             </div>
           </div>
@@ -511,13 +730,55 @@ export default function App() {
             <Activity className="animate-pulse-glow" style={{ color: 'var(--accent-cyan)' }} size={24} />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', letterSpacing: '-0.5px', margin: 0, fontFamily: 'var(--font-heading)' }}>HEALIX</h1>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Multispeciality Hospital HIMS</p>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px', margin: 0, fontFamily: 'var(--font-heading)' }}>HEALIX</h1>
+            <p className="mediq-subtitle">Multispeciality Hospital HIMS</p>
           </div>
         </div>
 
         {/* CONNECTION TOGGLE (Rule 2 simulation) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button 
+              onClick={() => setIsDispatchModalOpen(true)}
+              className="btn btn-glass"
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: '700', 
+                borderColor: 'rgba(59,130,246,0.5)', color: 'var(--accent-blue)'
+              }}
+            >
+              <Zap size={14} fill="currentColor" /> DISPATCH
+            </button>
+            
+            <button 
+              onClick={() => setIsInboxOpen(!isInboxOpen)}
+              className="btn btn-glass"
+              style={{ 
+                position: 'relative', padding: '8px 12px',
+                borderColor: isInboxOpen ? 'var(--accent-emerald)' : 'rgba(255,255,255,0.1)'
+              }}
+            >
+              <Bell size={16} color={isInboxOpen ? 'var(--accent-emerald)' : '#fff'} />
+              <span style={{ 
+                position: 'absolute', top: '-4px', right: '-4px', 
+                background: 'var(--accent-rose)', color: 'white', 
+                fontSize: '0.6rem', fontWeight: '800', 
+                width: '16px', height: '16px', borderRadius: '50%', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid #090e13'
+              }}>
+                {dispatchQueue.length}
+              </span>
+            </button>
+          </div>
+
+          <div className="glass-panel animate-slide-up" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(34, 211, 238, 0.2)' }}>
+            <Zap style={{ color: 'var(--accent-cyan)' }} size={16} className="animate-pulse" />
+            <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Scanner Active
+            </span>
+          </div>
+
           <div className="glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 14px', borderRadius: 'var(--radius-sm)' }}>
             {isOnline ? (
               <>
@@ -600,24 +861,28 @@ export default function App() {
         {/* SIDE NAV MENU */}
         <aside className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', borderRadius: 'var(--radius-lg)' }}>
           <div style={{ padding: '4px 8px 12px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.65rem', color: 'var(--accent-cyan)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ACTIVE PRIVILEGE</span>
-            <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '2px' }}>
-              {userRole === 'SUPER_ADMIN' ? '👑 SUPER ADMIN' : 
-               userRole === 'OP_STAFF' ? '🏥 OP DESK CLERK' : 
-               userRole === 'ER_STAFF' ? '🚨 ER COMMANDER' :
-               userRole === 'LAB_STAFF' ? '🧪 LAB ANALYZER' :
-               userRole === 'RAD_STAFF' ? '📡 RADIOLOGY PACS' :
-               userRole === 'PHARM_STAFF' ? '💊 PHARMACY DISPENSER' :
-               userRole === 'MMS_STAFF' ? '🏥 STOCK MMS' : 'STAFF'}
+            <span className="mediq-subtitle" style={{ color: 'var(--accent-cyan)' }}>ACTIVE PRIVILEGE</span>
+            <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '4px', fontFamily: 'var(--font-sans)', fontWeight: '700' }}>
+              {userRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 
+               userRole === 'OP_STAFF' ? 'OP DESK CLERK' : 
+               userRole === 'ER_STAFF' ? 'ER COMMANDER' :
+               userRole === 'LAB_STAFF' ? 'LAB ANALYZER' :
+               userRole === 'RAD_STAFF' ? 'RADIOLOGY PACS' :
+               userRole === 'PHARM_STAFF' ? 'PHARMACY DISPENSER' :
+               userRole === 'MMS_STAFF' ? 'STOCK MMS' : 'STAFF'}
             </strong>
           </div>
 
           {(userRole === 'SUPER_ADMIN') && (
             <>
-              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '4px 8px' }}>Primary Modules</p>
+              <p className="mediq-subtitle" style={{ padding: '4px 8px' }}>Primary Modules</p>
               
               <button onClick={() => setActiveTab('dashboard')} className={`btn btn-glass ${activeTab === 'dashboard' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
                 <Layers size={18} /> Dashboard
+              </button>
+              
+              <button onClick={() => setActiveTab('admin_hub')} className={`btn btn-glass ${activeTab === 'admin_hub' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+                <TrendingUp size={18} /> Admin & Analytics
               </button>
               
               <button onClick={() => setActiveTab('ip')} className={`btn btn-glass ${activeTab === 'ip' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
@@ -627,10 +892,23 @@ export default function App() {
               <button onClick={() => setActiveTab('ob')} className={`btn btn-glass ${activeTab === 'ob' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
                 <Heart size={18} /> OB / Bedside Tablet
               </button>
+
+              <button 
+                onClick={() => setActiveTab('crisis')} 
+                className={`btn btn-glass ${activeTab === 'crisis' ? 'active' : ''}`} 
+                style={{ 
+                  justifyContent: 'flex-start', width: '100%', 
+                  color: isCrisisMode ? 'var(--accent-rose)' : 'inherit',
+                  borderColor: isCrisisMode ? 'rgba(244,63,94,0.5)' : 'transparent',
+                  background: isCrisisMode ? 'rgba(244,63,94,0.1)' : 'transparent'
+                }}
+              >
+                <ShieldAlert size={18} /> Crisis Protocols {isCrisisMode && <span className="badge badge-rose" style={{fontSize:'0.6rem', padding:'1px 4px'}}>ACTIVE</span>}
+              </button>
             </>
           )}
 
-          <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '12px 8px 4px' }}>Interconnected platforms</p>
+          <p className="mediq-subtitle" style={{ padding: '12px 8px 4px' }}>Interconnected platforms</p>
 
           {(userRole === 'SUPER_ADMIN' || userRole === 'OP_STAFF') && (
             <button onClick={() => setActiveTab('op')} className={`btn btn-glass ${activeTab === 'op' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
@@ -638,9 +916,21 @@ export default function App() {
             </button>
           )}
 
+          {(userRole === 'SUPER_ADMIN' || userRole === 'OP_STAFF') && (
+            <button onClick={() => setActiveTab('opqueue')} className={`btn btn-glass ${activeTab === 'opqueue' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+              <Ticket size={18} /> OP Queue & Consult
+            </button>
+          )}
+
+          {(userRole === 'SUPER_ADMIN' || userRole === 'OP_STAFF') && (
+            <button onClick={() => setActiveTab('referrals')} className={`btn btn-glass ${activeTab === 'referrals' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+              <FileText size={18} /> Internal Referrals
+            </button>
+          )}
+
           {(userRole === 'SUPER_ADMIN' || userRole === 'ER_STAFF') && (
             <button onClick={() => setActiveTab('er')} className={`btn btn-glass ${activeTab === 'er' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
-              <ShieldAlert size={18} /> 🚨 Emergency & Triage
+              <ShieldAlert size={18} /> Emergency & Triage
             </button>
           )}
 
@@ -670,10 +960,34 @@ export default function App() {
 
           {(userRole === 'SUPER_ADMIN') && (
             <>
-              <p style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', padding: '12px 8px 4px' }}>Finance & Logs</p>
+              <p className="mediq-subtitle" style={{ padding: '12px 8px 4px' }}>Specialty Modules</p>
+
+              <button onClick={() => setActiveTab('ot')} className={`btn btn-glass ${activeTab === 'ot' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+                <ShieldCheck size={18} /> OT / Surgery Board
+              </button>
+
+              <button onClick={() => setActiveTab('insurance')} className={`btn btn-glass ${activeTab === 'insurance' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+                <Shield size={18} /> Insurance / TPA Desk
+              </button>
+
+              <button onClick={() => setActiveTab('packages')} className={`btn btn-glass ${activeTab === 'packages' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+                <TrendingUp size={18} /> Health Packages
+              </button>
+
+              <p className="mediq-subtitle" style={{ padding: '12px 8px 4px' }}>Institution Wide</p>
+              
+              <button onClick={() => setActiveTab('marketing')} className={`btn btn-glass ${activeTab === 'marketing' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+                <MessageSquare size={18} /> Marketing & CRM Hub
+              </button>
+
+              <p className="mediq-subtitle" style={{ padding: '12px 8px 4px' }}>Finance & Accounts</p>
               
               <button onClick={() => setActiveTab('billing')} className={`btn btn-glass ${activeTab === 'billing' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
-                <DollarSign size={18} /> Immutable Billing Log
+                <DollarSign size={18} /> Central Billing & RCM
+              </button>
+
+              <button onClick={() => setActiveTab('ipnew')} className={`btn btn-glass ${activeTab === 'ipnew' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
+                <BedDouble size={18} /> IPD Admission Desk
               </button>
             </>
           )}
@@ -721,6 +1035,183 @@ export default function App() {
             />
           </div>
 
+          {/* ================= TAB CONTENT 0: CRISIS PROTOCOLS ================= */}
+          {activeTab === 'crisis' && (
+            <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* DYNAMIC EMERGENCY ALERT BANNER */}
+              <div style={{ 
+                padding: '24px', 
+                borderRadius: 'var(--radius-md)', 
+                background: isCrisisMode ? 'linear-gradient(135deg, #f43f5e 0%, #9f1239 100%)' : 'linear-gradient(135deg, rgba(244,63,94,0.05) 0%, rgba(244,63,94,0.1) 100%)',
+                border: `2px solid ${isCrisisMode ? 'var(--accent-rose)' : 'rgba(244,63,94,0.2)'}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                boxShadow: isCrisisMode ? '0 10px 30px -10px rgba(244,63,94,0.5)' : 'none',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <ShieldAlert size={32} color={isCrisisMode ? '#fff' : 'var(--accent-rose)'} style={{ animation: isCrisisMode ? 'pulse 1.5s infinite' : 'none' }} />
+                    <h2 style={{ fontSize: '1.75rem', fontWeight: '800', color: isCrisisMode ? '#fff' : 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+                      CRISIS COMMAND & CONTROL
+                    </h2>
+                  </div>
+                  <p style={{ color: isCrisisMode ? 'rgba(255,255,255,0.9)' : 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: '500', maxWidth: '600px' }}>
+                    Authoritative system-wide override mechanism for Extreme Contingency Scenarios. Activating these protocols suspends normal operational gates in favor of immediate life-preservation.
+                  </p>
+                </div>
+                
+                <button 
+                  onClick={() => {
+                    setIsCrisisMode(!isCrisisMode);
+                    addNotification(isCrisisMode ? "Protocol Suspended" : "CRITICAL EMERGENCY ACTIVE", isCrisisMode ? "Normal hospital safeguards reinstated." : "Mass Casualty protocols engaged! Global verification disabled.", isCrisisMode ? "info" : "error");
+                    setCrisisLogs(prev => [`[${new Date().toLocaleTimeString()}] Protocol ${isCrisisMode ? 'DEACTIVATED' : 'ACTIVATED'} by SuperAdmin.`, ...prev]);
+                  }}
+                  className={`btn ${isCrisisMode ? 'btn-glass' : 'btn-rose'}`}
+                  style={{ 
+                    height: '56px', padding: '0 32px', fontSize: '1rem', fontWeight: '800', letterSpacing: '1px',
+                    background: isCrisisMode ? '#fff' : undefined, color: isCrisisMode ? 'var(--accent-rose)' : undefined,
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  {isCrisisMode ? "🔴 TERMINATE CRISIS OVERRIDE" : "⚠️ INITIATE MASS CASUALTY PROTOCOL"}
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '24px' }}>
+                
+                {/* LEFT COLUMN: ACTIVE CONTINGENCY SUB-SYSTEMS */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  
+                  {/* TOOL 1: ANONYMOUS OVERFLOW REGISTRY */}
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                      <Users size={20} color="var(--accent-cyan)" />
+                      <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Trauma-Burst Anonymous Generation</h3>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Generate sequential placeholder slots for mass incoming unidentified casualties.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', marginBottom: '6px' }}>INCIDENT NAME / DESIGNATOR</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. HIGHWAY-COLLISION-MCI" 
+                          className="form-input" 
+                          style={{ background: 'rgba(255,255,255,0.03)' }}
+                          id="mciDesignator"
+                        />
+                      </div>
+                      <div style={{ width: '140px' }}>
+                        <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '700', marginBottom: '6px' }}>VICTIM COUNT</label>
+                        <select className="form-input" style={{ background: 'rgba(255,255,255,0.03)' }} id="mciCount">
+                          <option value="5">5 Patients</option>
+                          <option value="10">10 Patients</option>
+                          <option value="25">25 Patients</option>
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        <button 
+                          onClick={() => {
+                            const desig = document.getElementById('mciDesignator').value || "UNIDENTIFIED";
+                            const count = parseInt(document.getElementById('mciCount').value);
+                            let newPat = [];
+                            for(let i=1; i<=count; i++) {
+                              newPat.push({
+                                id: `T-DOE-${Math.floor(Math.random()*10000)}`,
+                                name: `[EMERGENCY] ${desig} Victim #${i}`,
+                                age: "??",
+                                gender: "Unknown",
+                                type: "ER",
+                                status: "Critical Triage",
+                                room: "ER - OVERFLOW",
+                                doctor: "EMERGENCY TEAM"
+                              });
+                            }
+                            setPatients(prev => [...newPat, ...prev]);
+                            setCrisisLogs(prev => [`[${new Date().toLocaleTimeString()}] Spawned ${count} Sequential Emergency Slots for incident: ${desig}.`, ...prev]);
+                            addNotification("Mass Creation", `${count} patient shells instantiated in global stack!`, "warning");
+                          }}
+                          className="btn btn-cyan" 
+                          style={{ height: '42px', fontWeight: '700', padding: '0 20px' }}
+                        >
+                          ⚡ SPAWN SLOTS
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TOOL 2: BATCH QUARANTINE MONITOR */}
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-md)' }}>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <AlertTriangle size={20} color="var(--accent-rose)" />
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Global Bio-Lock Audit</h3>
+                      </div>
+                      <span className="badge badge-rose" style={{ fontSize: '0.7rem' }}>{quarantinedBatches.length} Active Lockdowns</span>
+                    </div>
+                    
+                    {quarantinedBatches.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px', background: 'rgba(255,255,255,0.01)', border: '1px dashed rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                        <ShieldCheck size={40} color="var(--accent-emerald)" style={{ opacity: 0.3, marginBottom: '12px' }} />
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No restricted medication batches found in active lockdown.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {quarantinedBatches.map((batch, i) => {
+                          const med = inventoryList.find(inv => inv.batch === batch);
+                          return (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(244,63,94,0.05)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '8px' }}>
+                              <div>
+                                <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--accent-rose)' }}>BATCH ID: {batch}</p>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Affected Product: {med ? med.name : "Unknown/Retired SKU"}</p>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setQuarantinedBatches(prev => prev.filter(b => b !== batch));
+                                  addNotification("Manual Unlock", `SuperAdmin override forced release on ${batch}`, "info");
+                                }}
+                                className="btn btn-glass" style={{ borderColor: 'var(--accent-rose)', color: 'var(--accent-rose)', fontSize: '0.75rem' }}>
+                                RELEASE LOCK
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* RIGHT COLUMN: LOGS & OVERVIEW */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-md)', flex: 1, minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                      System Audit Trail: Protocol Activations
+                    </h3>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
+                      {crisisLogs.length === 0 ? (
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Awaiting input log events...</p>
+                      ) : (
+                        crisisLogs.map((log, i) => (
+                          <div key={i} style={{ fontSize: '0.75rem', fontFamily: 'monospace', padding: '8px', background: 'rgba(0,0,0,0.2)', borderLeft: `3px solid ${log.includes('ACTIVATED') ? 'var(--accent-rose)' : 'var(--accent-cyan)'}`, borderRadius: '4px', color: 'rgba(255,255,255,0.7)' }}>
+                            {log}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
           {/* ================= TAB CONTENT 1: DASHBOARD ================= */}
           {activeTab === 'dashboard' && (
             <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -764,6 +1255,43 @@ export default function App() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
                     <Activity size={12} />
                     <span>Average consult: 12m</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================ */}
+              {/* ROW 2: RECENT DISPATCHES & ANALYTICS OVERVIEW */}
+              {/* ============================================ */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px' }}>
+                {/* LIVE CHART */}
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)' }}>
+                  <h3 style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '16px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Today's Revenue Throughput</h3>
+                  <div style={{ height: '180px', borderBottom: '1px solid var(--border-color)', borderLeft: '1px solid var(--border-color)', display: 'flex', alignItems: 'flex-end', gap: '12px', padding: '0 10px' }}>
+                    {[30, 45, 25, 60, 80, 55, 90].map((h, i) => (
+                      <div key={i} style={{ flex: 1, height: `${h}%`, background: 'linear-gradient(to top, var(--accent-emerald), transparent)', opacity: 0.4, borderRadius: '4px 4px 0 0' }}></div>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    <span>09:00</span><span>11:00</span><span>13:00</span><span>15:00</span><span>17:00</span>
+                  </div>
+                </div>
+
+                {/* RECENT LOGS (Normal Scenarios) */}
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                    <h3 style={{ fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Live Activity Feed</h3>
+                    <span className="badge badge-glass" style={{ fontSize: '0.6rem' }}>ROUTINE LOGS</span>
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {dispatchQueue.slice(0, 4).map(d => (
+                      <div key={d.id} style={{ padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', borderLeft: `3px solid ${d.type === 'STAT' || d.type === 'CODE_BLUE' ? 'var(--accent-rose)' : 'var(--accent-cyan)'}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '4px' }}>
+                          <strong style={{ color: '#fff' }}>{d.sender} ➡️ {d.target}</strong>
+                          <span style={{ color: 'var(--text-muted)' }}>{d.time}</span>
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.msg}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1215,71 +1743,14 @@ export default function App() {
           )}
           {/* ================= TAB CONTENT: LABORATORY TERMINAL ================= */}
           {activeTab === 'lab' && (
-            <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-emerald)' }}>
-                  🧪 Laboratory Analyzer & Diagnostics Terminal
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                  Real-time diagnostics queue linked with doctor consultations. Marking tests as completed automatically logs clinical charges to the central ledger asynchronously without manual friction.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {labOrders.length === 0 ? (
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textAlign: 'center', padding: '24px' }}>No active laboratory test indents queued.</p>
-                  ) : (
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                          <th style={{ padding: '10px' }}>ORDER ID</th>
-                          <th style={{ padding: '10px' }}>UHID / PATIENT NAME</th>
-                          <th style={{ padding: '10px' }}>REQUESTED PANEL</th>
-                          <th style={{ padding: '10px' }}>TIMESTAMP</th>
-                          <th style={{ padding: '10px' }}>STATUS</th>
-                          <th style={{ padding: '10px', textAlign: 'right' }}>ACTION</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {labOrders.map(order => (
-                          <tr key={order.id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
-                            <td style={{ padding: '12px 10px', fontWeight: '600' }}>{order.id}</td>
-                            <td style={{ padding: '12px 10px' }}>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--accent-emerald)', display: 'block' }}>{order.uhid}</span>
-                              <strong>{order.patientName}</strong>
-                            </td>
-                            <td style={{ padding: '12px 10px' }}>
-                              <span className="badge badge-purple">{order.testName}</span>
-                            </td>
-                            <td style={{ padding: '12px 10px', color: 'var(--text-muted)' }}>{order.timestamp}</td>
-                            <td style={{ padding: '12px 10px' }}>
-                              <span className={`badge ${order.status === 'Completed' ? 'badge-emerald' : 'badge-amber'}`}>
-                                {order.status}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 10px', textAlign: 'right' }}>
-                              {order.status === 'Pending' ? (
-                                <button 
-                                  onClick={() => {
-                                    setLabOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'Completed' } : o));
-                                    handlePostCharge(order.uhid, `Lab Analyzed Result: ${order.testName}`, 600, "Laboratory_Analyzer");
-                                    addNotification("Test Completed", `Lab result for ${order.patientName} uploaded live.`, "success");
-                                  }}
-                                  className="btn btn-emerald" 
-                                  style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                                >
-                                  Upload Results (Bill ₹600)
-                                </button>
-                              ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', fontWeight: '600' }}>✓ Logged to Bill</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
+            <div className="animate-slide-up" style={{ height: 'calc(100vh - 120px)' }}>
+              <LisModule 
+                labOrders={labOrders} 
+                setLabOrders={setLabOrders}
+                handlePostCharge={handlePostCharge}
+                addNotification={addNotification}
+                labMasterTests={labMasterTests}
+              />
             </div>
           )}
 
@@ -1600,10 +2071,11 @@ export default function App() {
                             <thead>
                               <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                                 <th style={{ padding: '8px' }}>MEDICINE NAME</th>
-                                <th style={{ padding: '8px' }}>BATCH</th>
+                                <th style={{ padding: '8px' }}>LOCATION</th>
+                                <th style={{ padding: '8px' }}>BATCH / EXP</th>
                                 <th style={{ padding: '8px' }}>DOSAGE SCHEMA</th>
-                                <th style={{ padding: '8px' }}>STOCK STATE</th>
-                                <th style={{ padding: '8px', textAlign: 'right' }}>ACTION / AUTO-SUBSTITUTION</th>
+                                <th style={{ padding: '8px' }}>STOCK</th>
+                                <th style={{ padding: '8px', textAlign: 'right' }}>ACTION</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1615,9 +2087,10 @@ export default function App() {
                                 // Find matching medicine in our inventoryList
                                 const matchingInv = inventoryList.find(inv => inv.name.toLowerCase().includes(baseName.toLowerCase()));
                                 const isLowStock = matchingInv ? matchingInv.stock < qty : false;
+                                const isQuarantined = matchingInv && quarantinedBatches.includes(matchingInv.batch);
                                 
                                 return (
-                                  <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', fontSize: '0.8rem' }}>
+                                  <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', fontSize: '0.8rem', opacity: isQuarantined ? 0.6 : 1, background: isQuarantined ? 'rgba(244, 63, 94, 0.05)' : 'transparent' }}>
                                     <td style={{ padding: '12px 8px', fontWeight: '600' }}>
                                       <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>{matchingInv ? matchingInv.generic : 'Generic formulation'}</span>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
@@ -1641,8 +2114,17 @@ export default function App() {
                                         </div>
                                       </div>
                                     </td>
-                                    <td style={{ padding: '12px 8px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                                    <td style={{ padding: '12px 8px' }}>
+                                      <span className="badge badge-glass" style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)' }}>
+                                        {matchingInv ? matchingInv.location : 'Aisle 1-A'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '12px 8px', fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                                       {matchingInv ? matchingInv.batch : 'B-GEN021'}
+                                      <br />
+                                      <strong style={{ color: matchingInv && matchingInv.expiry.startsWith('2026') ? 'var(--accent-rose)' : 'var(--text-secondary)' }}>
+                                        EXP: {matchingInv ? matchingInv.expiry : '2027-12'}
+                                      </strong>
                                     </td>
                                     <td style={{ padding: '12px 8px' }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1664,7 +2146,11 @@ export default function App() {
                                       )}
                                     </td>
                                     <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                      {isLowStock ? (
+                                      {isQuarantined ? (
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--accent-rose)', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                          🚫 BATCH QUARANTINE
+                                        </span>
+                                      ) : isLowStock ? (
                                         <span style={{ fontSize: '0.7rem', color: 'var(--accent-amber)', fontWeight: '600' }}>
                                           💡 Substitute with Calpol 650
                                         </span>
@@ -1716,7 +2202,21 @@ export default function App() {
 
                           {activeOrder.status === 'Pending' ? (
                             <button 
+                              disabled={activeOrder.medicines.split(', ').some(m => {
+                                const b = inventoryList.find(i => m.toLowerCase().includes(i.name.toLowerCase()));
+                                return b && quarantinedBatches.includes(b.batch);
+                              })}
                               onClick={() => {
+                                // Check total blocking quarantine again on click
+                                const block = activeOrder.medicines.split(', ').some(m => {
+                                  const b = inventoryList.find(i => m.toLowerCase().includes(i.name.toLowerCase()));
+                                  return b && quarantinedBatches.includes(b.batch);
+                                });
+                                if(block && !isCrisisMode) {
+                                  addNotification("Safety Blockade", "Dispense operation terminated. Contaminated batch found in basket.", "error");
+                                  return;
+                                }
+                                
                                 // Decrement from advanced inventoryList state safely
                                 const medicinesToDispense = activeOrder.medicines.split(', ');
                                 setInventoryList(prev => prev.map(inv => {
@@ -1730,13 +2230,19 @@ export default function App() {
                                 }));
 
                                 setPharmacyOrders(prev => prev.map(o => o.id === activeOrder.id ? { ...o, status: 'Dispensed' } : o));
-                                handlePostCharge(activeOrder.uhid, `Rx Dispensed: Paracetamol & Antibiotic Kit`, 350, "Pharmacy_Desk");
-                                addNotification("Meds Dispensed", `Prescription package for ${activeOrder.patientName} physically handed over. Stocks auto-decremented.`, "success");
+                                handlePostCharge(activeOrder.uhid, `Rx Dispensed: Clinical Formula`, isCrisisMode ? 0 : 350, "Pharmacy_Desk");
+                                addNotification("Meds Dispensed", isCrisisMode ? "EMERGENCY PROTOCOL: Bypassed financial verification." : `Prescription package for ${activeOrder.patientName} physically handed over. Stocks auto-decremented.`, "success");
                               }}
                               className="btn btn-emerald" 
-                              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', height: '40px', padding: '0 20px' }}
+                              style={{ 
+                                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', height: '40px', padding: '0 20px',
+                                opacity: activeOrder.medicines.split(', ').some(m => {
+                                  const b = inventoryList.find(i => m.toLowerCase().includes(i.name.toLowerCase()));
+                                  return b && quarantinedBatches.includes(b.batch);
+                                }) ? 0.4 : 1
+                              }}
                             >
-                              💊 Pre-pack & Dispense (Bill ₹350)
+                              {isCrisisMode ? "🚨 FORCED EMERGENCY DISPENSE" : "💊 Pre-pack & Dispense (Bill ₹350)"}
                             </button>
                           ) : (
                             <span style={{ fontSize: '0.85rem', color: 'var(--accent-emerald)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1862,13 +2368,19 @@ export default function App() {
                               </button>
                               <button 
                                 onClick={() => {
-                                  setInventoryList(prev => prev.map(inv => inv.id === item.id ? { ...inv, stock: item.minThreshold * 2 } : inv));
-                                  addNotification("Ledger Override", `${item.name} stock manually aligned to maximum par levels.`, "info");
+                                  const isCurrentlyQuarantined = quarantinedBatches.includes(item.batch);
+                                  if(isCurrentlyQuarantined) {
+                                    setQuarantinedBatches(prev => prev.filter(b => b !== item.batch));
+                                    addNotification("Lockdown Lifted", `Batch ${item.batch} unlocked globally.`, "info");
+                                  } else {
+                                    setQuarantinedBatches(prev => [...prev, item.batch]);
+                                    addNotification("GLOBAL BATCH QUARANTINE", `Lockdown enacted on ${item.batch} instantly!`, "error");
+                                  }
                                 }}
-                                className="btn btn-glass"
-                                style={{ fontSize: '0.75rem', height: '36px', fontWeight: '700', borderColor: 'var(--accent-cyan)', color: 'var(--accent-cyan)' }}
+                                className={`btn ${quarantinedBatches.includes(item.batch) ? 'btn-emerald' : 'btn-rose'}`}
+                                style={{ fontSize: '0.75rem', height: '36px', fontWeight: '700' }}
                               >
-                                🔄 ALIGN PAR
+                                ⚠️ {quarantinedBatches.includes(item.batch) ? "RELEASE LOCK" : "FREEZE BATCH"}
                               </button>
                             </div>
                           </div>
@@ -2057,6 +2569,26 @@ export default function App() {
             return (
               <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 
+                {/* MMS MULTI-MODULE SUB-TAB NAV */}
+                <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                  <button 
+                    onClick={() => setInventorySubTab('overview')} 
+                    className={`badge ${inventorySubTab === 'overview' ? 'badge-cyan' : 'badge-glass'}`}
+                    style={{ padding: '8px 16px', cursor: 'pointer', border: 'none', fontWeight: '700' }}
+                  >
+                    📦 Central Inventory Ledger
+                  </button>
+                  <button 
+                    onClick={() => setInventorySubTab('suppliers')} 
+                    className={`badge ${inventorySubTab === 'suppliers' ? 'badge-purple' : 'badge-glass'}`}
+                    style={{ padding: '8px 16px', cursor: 'pointer', border: 'none', fontWeight: '700' }}
+                  >
+                    🤝 Supplier Ledger & B2B POs
+                  </button>
+                </div>
+
+                {inventorySubTab === 'overview' ? (
+                  <>
                 {/* INVENTORY HEADER */}
                 <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2502,63 +3034,829 @@ export default function App() {
                   </table>
                 </div>
 
+                  </>
+                ) : (
+                  <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-purple)', margin: 0 }}>
+                          📑 Centralized Supplier Ledger (MMS)
+                        </h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>Audit external vendor networks, evaluate reliability scoring, and trigger digitized B2B purchase orders.</p>
+                      </div>
+                      <button onClick={() => addNotification("Form Opened", "Ready to onboarding new bulk medical distributor.", "info")} className="btn btn-purple" style={{ fontWeight: '700' }}>+ Register Vendor</button>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid var(--accent-emerald)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>Apollo Medical Wholesale Ltd.</strong>
+                          <span className="badge badge-emerald">A+ RATED</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '8px 0' }}>Category: Major Pharmaceutics, Lifesaving Intravenous.</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem' }}>2 Open POs Pending</span>
+                          <button onClick={() => addNotification("PO Placed", "Order #PO-882 dispatched to vendor gateway.", "success")} className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>Create Restock PO</button>
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ padding: '20px', background: 'rgba(255,255,255,0.02)', borderLeft: '4px solid var(--accent-cyan)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>Global Cold-Chain Biotech</strong>
+                          <span className="badge badge-cyan">VACCINE SPL</span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '8px 0' }}>Category: Insulins, Blood, Biological Agents.</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem' }}>1 Active Dispatch</span>
+                          <button className="btn btn-glass" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>Create Restock PO</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             );
           })()}
 
-          {/* ================= TAB CONTENT 5: IMMUTABLE CHARGE LOG ================= */}
-          {activeTab === 'billing' && (
-            <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '700', fontFamily: 'var(--font-heading)', color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ShieldCheck /> Rule 3: Single-Source-of-Truth Immutable Charge Log
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Every transaction appends a new record to prevent race conditions. Deletion is forbidden.
+          {/* ================= TAB CONTENT: MARKETING & CRM HUB ================= */}
+          {activeTab === 'marketing' && (
+            <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div className="glass-panel" style={{ padding: '32px', borderRadius: 'var(--radius-lg)', background: 'radial-gradient(circle at top left, rgba(6, 182, 212, 0.05), transparent)' }}>
+                
+                <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '20px', marginBottom: '24px' }}>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--accent-cyan)', fontFamily: 'var(--font-heading)' }}>
+                    <MessageSquare size={28} /> Healix Patient Engagement & CRM Hub
+                  </h2>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
+                    Oversee global retention strategies, high-impact health camp broadcasts, and transactional patient notification channels.
                   </p>
                 </div>
-                <div className="glass-panel" style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Today's Total: </span>
-                  <strong style={{ color: 'var(--accent-emerald)', fontSize: '1rem' }}>₹{totalRevenue.toLocaleString()}</strong>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '24px' }}>
+                  
+                  {/* CAMPAIGN CENTER */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="glass-panel" style={{ padding: '24px', background: 'rgba(255,255,255,0.01)' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Smartphone size={18} className="text-cyan" /> Trigger Multi-Channel Patient Broadcast
+                      </h4>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Draft notification logic targeting all registered active patient profiles via automated SMS engine.</p>
+                      
+                      <textarea 
+                        placeholder="Write automated promotional or critical notification text..."
+                        value={bulkSmsMsg}
+                        onChange={(e) => setBulkSmsMsg(e.target.value)}
+                        className="form-control"
+                        style={{ width: '100%', minHeight: '100px', padding: '12px', fontSize: '0.85rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', color: '#fff', marginBottom: '12px' }}
+                      />
+
+                      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                        <button onClick={() => setBulkSmsMsg("📢 Healix Alert: Specialized Cardiac Camp this Sunday. Avail free diagnostics checkups for you and family.")} className="badge badge-glass" style={{ border: 'none', cursor: 'pointer', padding: '6px 12px' }}>+ Load Health Camp Template</button>
+                        <button onClick={() => setBulkSmsMsg("⚕️ Prescriptive Care: Hello, it seems your recurring medical stock may require replenishment. Tap to auto-order.")} className="badge badge-glass" style={{ border: 'none', cursor: 'pointer', padding: '6px 12px' }}>+ Load Pharmacy Refill Alert</button>
+                      </div>
+
+                      <button 
+                        disabled={!bulkSmsMsg}
+                        onClick={() => {
+                          addNotification("Campaign Live", "Bulk SMS successfully dispatched to gateway queue.", "success");
+                          setBulkSmsMsg('');
+                        }}
+                        className="btn btn-cyan" 
+                        style={{ width: '100%', height: '44px', fontWeight: '700', opacity: bulkSmsMsg ? 1 : 0.5 }}
+                      >
+                        🚀 Launch Immediate Mass Broadcast
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* LOYALTY & RETENTION */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    <div className="glass-panel" style={{ padding: '24px', background: 'rgba(139, 92, 246, 0.04)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--accent-purple)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Ticket size={18} /> Loyalty Program Controls
+                      </h4>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Points per ₹100 Spend</span>
+                          <strong style={{ color: 'var(--accent-purple)' }}>1.0 Pts</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>Auto-Redemption Floor</span>
+                          <strong style={{ color: 'var(--accent-purple)' }}>500 Pts</strong>
+                        </div>
+                        
+                        <hr style={{ border: '0', borderTop: '1px solid rgba(139, 92, 246, 0.2)', margin: '8px 0' }} />
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '0.8rem' }}>Silver Membership</strong>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>120 Members Enrolled</span>
+                          </div>
+                          <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>Active</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ display: 'block', fontSize: '0.8rem' }}>Platinum Tier</strong>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>14 Enterprise Accounts</span>
+                          </div>
+                          <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>Active</span>
+                        </div>
+                        
+                        <button className="btn btn-glass" style={{ width: '100%', fontSize: '0.8rem', marginTop: '10px', borderColor: 'rgba(139, 92, 246, 0.3)' }}>Edit Global Policies</button>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
+            </div>
+          )}
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    <th style={{ padding: '12px 8px' }}>TRANSACTION ID</th>
-                    <th style={{ padding: '12px 8px' }}>UHID / PATIENT NAME</th>
-                    <th style={{ padding: '12px 8px' }}>SERVICE / CHARGE DETAIL</th>
-                    <th style={{ padding: '12px 8px' }}>DISPATCHED BY</th>
-                    <th style={{ padding: '12px 8px' }}>TIMESTAMP</th>
-                    <th style={{ padding: '12px 8px', textAlign: 'right' }}>AMOUNT</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {chargeLog.slice().reverse().map(item => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', fontSize: '0.85rem' }}>
-                      <td style={{ padding: '14px 8px', fontFamily: 'var(--font-heading)', color: 'var(--text-muted)' }}>{item.id}</td>
-                      <td style={{ padding: '14px 8px' }}>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', display: 'block' }}>{item.uhid}</span>
-                        <strong>{item.patientName}</strong>
-                      </td>
-                      <td style={{ padding: '14px 8px' }}>{item.description}</td>
-                      <td style={{ padding: '14px 8px' }}>
-                        <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>{item.user}</span>
-                      </td>
-                      <td style={{ padding: '14px 8px', color: 'var(--text-secondary)' }}>{item.timestamp}</td>
-                      <td style={{ padding: '14px 8px', textAlign: 'right', fontWeight: '700', color: 'var(--accent-emerald)' }}>₹{item.amount.toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* ================= TAB CONTENT: UPGRADED CENTRAL BILLING & RCM ================= */}
+          {activeTab === 'billing' && (
+            <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              {/* REVENUE CYCLE MANAGEMENT NAV */}
+              <div className="glass-panel" style={{ padding: '12px', display: 'flex', gap: '12px', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)' }}>
+                <button 
+                  onClick={() => setBillingSubTab('ledger')} 
+                  className={`btn ${billingSubTab === 'ledger' ? 'btn-emerald' : 'btn-glass'}`} 
+                  style={{ flex: 1, fontWeight: '700', fontSize: '0.8rem' }}
+                >
+                  📜 Immutable Ledger
+                </button>
+                <button 
+                  onClick={() => setBillingSubTab('schemes')} 
+                  className={`btn ${billingSubTab === 'schemes' ? 'btn-cyan' : 'btn-glass'}`} 
+                  style={{ flex: 1, fontWeight: '700', fontSize: '0.8rem' }}
+                >
+                  🔖 Credit / Returns / Schemes
+                </button>
+                <button 
+                  onClick={() => setBillingSubTab('finance')} 
+                  className={`btn ${billingSubTab === 'finance' ? 'btn-rose' : 'btn-glass'}`} 
+                  style={{ flex: 1, fontWeight: '700', fontSize: '0.8rem' }}
+                >
+                  🏛️ Institutional Finance & Tax
+                </button>
+              </div>
+
+              {billingSubTab === 'ledger' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: '700', fontFamily: 'var(--font-heading)', color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ShieldCheck /> Institutional Unified Revenue Ledger
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Standard transactional source-of-truth. Every clinical charge mapped in absolute sequence.
+                      </p>
+                    </div>
+                    <div className="glass-panel" style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>EOD Aggregation: </span>
+                      <strong style={{ color: 'var(--accent-emerald)', fontSize: '1rem' }}>₹{totalRevenue.toLocaleString()}</strong>
+                    </div>
+                  </div>
+
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                        <th style={{ padding: '12px 8px' }}>TRX ID</th>
+                        <th style={{ padding: '12px 8px' }}>PATIENT DETAILS</th>
+                        <th style={{ padding: '12px 8px' }}>INVOICE DESC</th>
+                        <th style={{ padding: '12px 8px' }}>SOURCE DEP</th>
+                        <th style={{ padding: '12px 8px', textAlign: 'right' }}>NET AMOUNT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chargeLog.slice().reverse().map(item => (
+                        <tr key={item.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.03)', fontSize: '0.85rem' }}>
+                          <td style={{ padding: '14px 8px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{item.id}</td>
+                          <td style={{ padding: '14px 8px' }}>
+                            <strong style={{ display: 'block' }}>{item.patientName}</strong>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.uhid}</span>
+                          </td>
+                          <td style={{ padding: '14px 8px' }}>{item.description}</td>
+                          <td style={{ padding: '14px 8px' }}>
+                            <span className="badge badge-glass" style={{ fontSize: '0.65rem' }}>{item.user}</span>
+                          </td>
+                          <td style={{ padding: '14px 8px', textAlign: 'right', fontWeight: '700', color: item.amount < 0 ? 'var(--accent-rose)' : 'var(--accent-emerald)' }}>
+                            ₹{item.amount.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {billingSubTab === 'schemes' && (
+                <div className="animate-slide-up" style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '20px' }}>
+                  {/* REFUNDS CONTROL */}
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--accent-rose)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <RotateCcw size={18} /> Execute Patient Refund / Return
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>Issuing a validated return creates a contra-entry deduction in the immutable ledger instantly.</p>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Locate Open Ledger Account</label>
+                      <select className="form-control" style={{ height: '42px', fontSize: '0.85rem' }}>
+                        <option value="">Select Patient Ledger...</option>
+                        {patients.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+                      </select>
+
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Refund Quantifiable Amount (₹)</label>
+                      <input type="number" placeholder="e.g. 500" className="form-control" style={{ height: '42px', fontSize: '0.85rem' }} />
+
+                      <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Return Authorization Reason</label>
+                      <select className="form-control" style={{ height: '42px', fontSize: '0.85rem' }}>
+                        <option>Unused Pharmacy Meds Return</option>
+                        <option>Cancelled Diagnostic Procedure</option>
+                        <option>Doctor Waiver/Discount</option>
+                      </select>
+
+                      <button 
+                        onClick={() => addNotification("Refund Counter Entry Created", "Immutable credit note injected into master ledger.", "warning")}
+                        className="btn btn-rose" 
+                        style={{ marginTop: '12px', height: '42px', fontWeight: '700' }}
+                      >
+                        Post Credit Return Entry
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* SCHEMES CONTROL */}
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--accent-cyan)', marginBottom: '16px' }}>🔖 Active Subsidy & Insurance Schemes</h3>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-emerald)' }}>
+                        <div>
+                          <strong style={{ fontSize: '0.9rem', display: 'block' }}>ECHS Senior Citizens Scheme</strong>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Status: ACTIVE | Type: Flat 15% OP Waiver</span>
+                        </div>
+                        <div className="form-switch" style={{ background: 'var(--accent-emerald)', width: '32px', height: '16px', borderRadius: '8px' }}></div>
+                      </div>
+                      
+                      <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-cyan)' }}>
+                        <div>
+                          <strong style={{ fontSize: '0.9rem', display: 'block' }}>Star Health Insurance Direct TPA</strong>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Status: ACTIVE | Type: Credit Approved Direct</span>
+                        </div>
+                        <div className="form-switch" style={{ background: 'var(--accent-emerald)', width: '32px', height: '16px', borderRadius: '8px' }}></div>
+                      </div>
+
+                      <button className="btn btn-glass" style={{ marginTop: '8px', width: '100%' }}>+ Enroll New Corporate Discount Policy</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {billingSubTab === 'finance' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(244, 63, 94, 0.3)' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--accent-rose)', marginBottom: '8px' }}>🏛️ End of Period Institutional Closing</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>Perform centralized GSTR calculation and trigger automatic department profit-share payouts.</p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+                    <div className="glass-panel" style={{ padding: '24px', background: 'rgba(255,255,255,0.01)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Subtotal Base Revenue</span>
+                      <strong style={{ display: 'block', fontSize: '1.75rem', marginTop: '4px', fontFamily: 'var(--font-heading)' }}>₹{(totalRevenue * 0.85).toLocaleString(undefined, {maximumFractionDigits:0})}</strong>
+                    </div>
+                    <div className="glass-panel" style={{ padding: '24px', background: 'rgba(244, 63, 94, 0.05)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-rose)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Calculated Tax / GST Payable</span>
+                      <strong style={{ display: 'block', fontSize: '1.75rem', marginTop: '4px', fontFamily: 'var(--font-heading)', color: 'var(--accent-rose)' }}>₹{(totalRevenue * 0.15).toLocaleString(undefined, {maximumFractionDigits:0})}</strong>
+                    </div>
+                    <div className="glass-panel" style={{ padding: '24px', background: 'rgba(16, 185, 129, 0.05)' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Consultant Commission Pool</span>
+                      <strong style={{ display: 'block', fontSize: '1.75rem', marginTop: '4px', fontFamily: 'var(--font-heading)', color: 'var(--accent-emerald)' }}>₹{(totalRevenue * 0.25).toLocaleString(undefined, {maximumFractionDigits:0})}</strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '16px' }}>
+                    <button 
+                      onClick={() => addNotification("Report Downloaded", "Detailed GSTR-1 Tax Reconciliation PDF is ready.", "success")}
+                      className="btn btn-glass" 
+                      style={{ flex: 1, height: '48px', fontWeight: '700' }}
+                    >
+                      💾 Export Tally / GSTR Report
+                    </button>
+                    <button className="btn btn-rose" style={{ flex: 1, height: '48px', fontWeight: '700' }}>
+                      🔒 Freeze Account Ledger & Terminate Period
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ===================================================== */}
+          {/* 🏥 DYNAMIC CONTENT INJECTION FOR EXPANDED SCENARIOS */}
+          {/* ===================================================== */}
+          
+          {activeTab === 'opqueue' && (
+            <OpdModule 
+              opQueue={opQueue} setOpQueue={setOpQueue}
+              tokenCounter={tokenCounter} setTokenCounter={setTokenCounter}
+              opQueueSubTab={opQueueSubTab} setOpQueueSubTab={setOpQueueSubTab}
+              selectedConsultToken={selectedConsultToken} setSelectedConsultToken={setSelectedConsultToken}
+              consultChiefComplaint={consultChiefComplaint} setConsultChiefComplaint={setConsultChiefComplaint}
+              consultDiagnosis={consultDiagnosis} setConsultDiagnosis={setConsultDiagnosis}
+              consultNotes={consultNotes} setConsultNotes={setConsultNotes}
+              consultOrderedServices={consultOrderedServices} setConsultOrderedServices={setConsultOrderedServices}
+              consultPrescription={consultPrescription} setConsultPrescription={setConsultPrescription}
+              addNotification={addNotification} handlePostCharge={handlePostCharge}
+              setLabOrders={setLabOrders} setRadiologyOrders={setRadiologyOrders} setPharmacyOrders={setPharmacyOrders}
+            />
+          )}
+
+          {activeTab === 'ipnew' && (
+            <IpdModule 
+              ipAdmissions={ipAdmissions} setIpAdmissions={setIpAdmissions}
+              ipAdmSubTab={ipAdmSubTab} setIpAdmSubTab={setIpAdmSubTab}
+              newAdmName={newAdmName} setNewAdmName={setNewAdmName}
+              newAdmAge={newAdmAge} setNewAdmAge={setNewAdmAge}
+              newAdmGender={newAdmGender} setNewAdmGender={setNewAdmGender}
+              newAdmWard={newAdmWard} setNewAdmWard={setNewAdmWard}
+              newAdmBed={newAdmBed} setNewAdmBed={setNewAdmBed}
+              newAdmDoctor={newAdmDoctor} setNewAdmDoctor={setNewAdmDoctor}
+              newAdmDiagnosis={newAdmDiagnosis} setNewAdmDiagnosis={setNewAdmDiagnosis}
+              newAdmDeposit={newAdmDeposit} setNewAdmDeposit={setNewAdmDeposit}
+              newAdmReferFrom={newAdmReferFrom} setNewAdmReferFrom={setNewAdmReferFrom}
+              selectedAdmission={selectedAdmission} setSelectedAdmission={setSelectedAdmission}
+              wardRoundNote={wardRoundNote} setWardRoundNote={setWardRoundNote}
+              dischargeSummaryText={dischargeSummaryText} setDischargeSummaryText={setDischargeSummaryText}
+              dischargeRx={dischargeRx} setDischargeRx={setDischargeRx}
+              addNotification={addNotification} handlePostCharge={handlePostCharge}
+              setPatients={setPatients}
+            />
+          )}
+
+          {activeTab === 'ot' && (
+            <OtModule 
+              otSchedule={otSchedule} setOtSchedule={setOtSchedule}
+              otSubTab={otSubTab} setOtSubTab={setOtSubTab}
+              newOtPatient={newOtPatient} setNewOtPatient={setNewOtPatient}
+              newOtSurgery={newOtSurgery} setNewOtSurgery={setNewOtSurgery}
+              newOtSurgeon={newOtSurgeon} setNewOtSurgeon={setNewOtSurgeon}
+              newOtDate={newOtDate} setNewOtDate={setNewOtDate}
+              newOtTime={newOtTime} setNewOtTime={setNewOtTime}
+              addNotification={addNotification}
+            />
+          )}
+
+          {activeTab === 'insurance' && (
+            <InsuranceModule 
+              insuranceClaims={insuranceClaims} setInsuranceClaims={setInsuranceClaims}
+              insSubTab={insSubTab} setInsSubTab={setInsSubTab}
+              newClaimUhid={newClaimUhid} setNewClaimUhid={setNewClaimUhid}
+              newClaimPatient={newClaimPatient} setNewClaimPatient={setNewClaimPatient}
+              newClaimTpa={newClaimTpa} setNewClaimTpa={setNewClaimTpa}
+              newClaimPolicy={newClaimPolicy} setNewClaimPolicy={setNewClaimPolicy}
+              newClaimValidity={newClaimValidity} setNewClaimValidity={setNewClaimValidity}
+              newClaimAmt={newClaimAmt} setNewClaimAmt={setNewClaimAmt}
+              newClaimCopay={newClaimCopay} setNewClaimCopay={setNewClaimCopay}
+              addNotification={addNotification}
+            />
+          )}
+
+          {activeTab === 'packages' && (
+            <HealthPackageModule 
+              healthPackages={healthPackages}
+              pkgBookings={pkgBookings} setPkgBookings={setPkgBookings}
+              pkgSubTab={pkgSubTab} setPkgSubTab={setPkgSubTab}
+              pkgPatientName={pkgPatientName} setPkgPatientName={setPkgPatientName}
+              pkgPatientAge={pkgPatientAge} setPkgPatientAge={setPkgPatientAge}
+              selectedPkg={selectedPkg} setSelectedPkg={setSelectedPkg}
+              addNotification={addNotification} handlePostCharge={handlePostCharge}
+            />
+          )}
+
+          {activeTab === 'referrals' && (
+            <ReferralModule 
+              referralSlips={referralSlips} setReferralSlips={setReferralSlips}
+              refFromDept={refFromDept} setRefFromDept={setRefFromDept}
+              refToDept={refToDept} setRefToDept={setRefToDept}
+              refReason={refReason} setRefReason={setRefReason}
+              refPatientUhid={refPatientUhid} setRefPatientUhid={setRefPatientUhid}
+              refPatientName={refPatientName} setRefPatientName={setRefPatientName}
+              addNotification={addNotification} handlePostCharge={handlePostCharge}
+            />
+          )}
+
+          {activeTab === 'admin_hub' && (
+            <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                <button onClick={() => setAdminSubTab('analytics')} className={`btn ${adminSubTab === 'analytics' ? 'btn-emerald' : 'btn-glass'}`}><TrendingUp size={16} /> Analytics Hub</button>
+                <button onClick={() => setAdminSubTab('masters')} className={`btn ${adminSubTab === 'masters' ? 'btn-cyan' : 'btn-glass'}`}><Layers size={16} /> Masters Configuration</button>
+                <button onClick={() => setAdminSubTab('discharge')} className={`btn ${adminSubTab === 'discharge' ? 'btn-blue' : 'btn-glass'}`}><ShieldCheck size={16} /> Discharge Clearance</button>
+                <button onClick={() => setAdminSubTab('feedback')} className={`btn ${adminSubTab === 'feedback' ? 'btn-purple' : 'btn-glass'}`}><MessageSquare size={16} /> Patient Feedback</button>
+                <button onClick={() => setAdminSubTab('compliance')} className={`btn ${adminSubTab === 'compliance' ? 'btn-rose' : 'btn-glass'}`}><ShieldAlert size={16} /> Audit Logs</button>
+              </div>
+
+              {adminSubTab === 'analytics' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-emerald)' }}>
+                    📊 Consolidated Analytics Hub
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
+                    <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)', background: 'var(--bg-tertiary)' }}>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '16px', color: 'var(--text-secondary)' }}>Monthly Patient Progression (OP vs IP)</h4>
+                      <div style={{ height: '240px', borderBottom: '2px solid var(--border-color)', borderLeft: '2px solid var(--border-color)', display: 'flex', alignItems: 'flex-end', gap: '20px', padding: '0 20px' }}>
+                        {[40, 60, 45, 80, 50, 90, 70].map((h, i) => (
+                          <div key={i} style={{ flex: 1, display: 'flex', gap: '4px', height: '100%', alignItems: 'flex-end' }}>
+                            <div style={{ flex: 1, height: `${h}%`, background: 'var(--accent-cyan)', borderRadius: '4px 4px 0 0', opacity: 0.8 }}></div>
+                            <div style={{ flex: 1, height: `${h * 0.4}%`, background: 'var(--accent-amber)', borderRadius: '4px 4px 0 0', opacity: 0.8 }}></div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '16px', fontSize: '0.8rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', background: 'var(--accent-cyan)', borderRadius: '2px' }}></div> OP Consults</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', background: 'var(--accent-amber)', borderRadius: '2px' }}></div> IP Admissions</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)' }}>
+                        <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Revenue Today</h4>
+                        <p style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--accent-emerald)', fontFamily: 'var(--font-heading)' }}>₹{totalRevenue.toLocaleString()}</p>
+                      </div>
+                      <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)' }}>
+                        <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Total Appointments</h4>
+                        <p style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--accent-blue)', fontFamily: 'var(--font-heading)' }}>{patients.length}</p>
+                      </div>
+                      <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)' }}>
+                        <h4 style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Bed Occupancy</h4>
+                        <p style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--accent-purple)', fontFamily: 'var(--font-heading)' }}>34%</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {adminSubTab === 'masters' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-cyan)' }}>
+                    ⚙️ Masters Configuration
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>Dynamically configure system dictionaries, templates, and billing schemas without engineering support.</p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    {['Investigation Master', 'Doctor Master', 'Service Master', 'Billing Master', 'Casesheet Master', 'Template Master', 'Store Master', 'Ward Master'].map((master, i) => (
+                      <div key={i} className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-md)', textAlign: 'center', cursor: 'pointer', transition: '0.2s', border: '1px solid var(--border-color)' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent-cyan)'} onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                        <Layers size={24} style={{ color: 'var(--accent-cyan)', margin: '0 auto 10px' }} />
+                        <h4 style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>{master}</h4>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div style={{ marginTop: '32px', padding: '20px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '16px' }}>Quick Edit: Casesheet/Prescription Master</h4>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 1 }}>
+                        <label className="form-label">Template Name</label>
+                        <input type="text" className="form-input" placeholder="e.g. Standard Cardiology Advice" />
+                      </div>
+                      <div style={{ flex: 2 }}>
+                        <label className="form-label">Default Advice Details</label>
+                        <input type="text" className="form-input" placeholder="Enter default notes..." />
+                      </div>
+                      <button className="btn btn-emerald" onClick={() => addNotification('Master Updated', 'Template master saved successfully.', 'success')}><Save size={16} /> Save</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {adminSubTab === 'discharge' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', background: 'rgba(59, 130, 246, 0.02)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-blue)' }}>
+                    🛏️ Manage Discharge & Clearance
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>Multi-departmental checklist required before generating the final discharge summary and patient exit.</p>
+                  
+                  <div style={{ display: 'flex', gap: '24px' }}>
+                    <div style={{ width: '300px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Inpatients</h4>
+                      {patients.filter(p => p.type === 'IP').map(p => (
+                        <div 
+                          key={p.id} 
+                          onClick={() => setActiveDischargePatient(p.id)}
+                          style={{ padding: '12px', background: activeDischargePatient === p.id ? 'var(--accent-blue)' : 'var(--bg-secondary)', color: activeDischargePatient === p.id ? 'white' : 'var(--text-primary)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                        >
+                          <span style={{ fontSize: '0.7rem', display: 'block', opacity: 0.8 }}>{p.id}</span>
+                          <strong style={{ fontSize: '0.9rem' }}>{p.name}</strong>
+                          <span style={{ fontSize: '0.7rem', display: 'block', marginTop: '4px' }}>{p.room}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="glass-panel" style={{ flex: 1, padding: '24px', borderRadius: 'var(--radius-md)' }}>
+                      {(() => {
+                        const activePatient = patients.find(p => p.id === activeDischargePatient);
+                        if (!activePatient) return <p>Select a patient.</p>;
+                        
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                              <div>
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>{activePatient.name}</h2>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{activePatient.id} • {activePatient.age} yrs • {activePatient.room} • {activePatient.doctor}</p>
+                              </div>
+                              <div style={{ textAlign: 'right' }}>
+                                <span className="badge badge-amber">{activePatient.status}</span>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Admitted: 2026-05-09</p>
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '16px' }}>Departmental Clearance Status</h4>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                                <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-sm)', border: `2px solid ${dischargeClearance.nursing ? 'var(--accent-emerald)' : 'var(--accent-rose)'}` }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <strong style={{ fontSize: '0.85rem' }}>Nursing Desk</strong>
+                                    <input type="checkbox" checked={dischargeClearance.nursing} onChange={(e) => setDischargeClearance({...dischargeClearance, nursing: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                                  </div>
+                                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px' }}>Vitals stopped, cannula removed.</p>
+                                </div>
+                                <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-sm)', border: `2px solid ${dischargeClearance.pharmacy ? 'var(--accent-emerald)' : 'var(--accent-rose)'}` }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <strong style={{ fontSize: '0.85rem' }}>Pharmacy</strong>
+                                    <input type="checkbox" checked={dischargeClearance.pharmacy} onChange={(e) => setDischargeClearance({...dischargeClearance, pharmacy: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                                  </div>
+                                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px' }}>Discharge meds dispensed & billed.</p>
+                                </div>
+                                <div className="glass-panel" style={{ padding: '16px', borderRadius: 'var(--radius-sm)', border: `2px solid ${dischargeClearance.billing ? 'var(--accent-emerald)' : 'var(--accent-rose)'}` }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <strong style={{ fontSize: '0.85rem' }}>Billing Desk</strong>
+                                    <input type="checkbox" checked={dischargeClearance.billing} onChange={(e) => setDischargeClearance({...dischargeClearance, billing: e.target.checked})} style={{ width: '18px', height: '18px' }} />
+                                  </div>
+                                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px' }}>Final settlement completed.</p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                              <button 
+                                className={`btn ${dischargeClearance.nursing && dischargeClearance.pharmacy && dischargeClearance.billing ? 'btn-emerald' : 'btn-disabled'}`}
+                                onClick={() => {
+                                  if(dischargeClearance.nursing && dischargeClearance.pharmacy && dischargeClearance.billing) {
+                                    setPatients(patients.map(p => p.id === activeDischargePatient ? {...p, status: 'Discharged'} : p));
+                                    addNotification('Patient Discharged', `${activePatient.name} has been formally discharged.`, 'success');
+                                    setDischargeClearance({ pharmacy: false, billing: false, nursing: false });
+                                  }
+                                }}
+                              >
+                                <CheckCircle size={16} /> Execute Final Discharge
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {adminSubTab === 'feedback' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-purple)' }}>
+                    ⭐ Manage Patient Feedback
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>Automated collection of patient satisfaction scores post-visit or post-discharge.</p>
+                  
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                      <tr>
+                        <th style={{ padding: '12px' }}>Patient Name</th>
+                        <th style={{ padding: '12px' }}>Patient ID</th>
+                        <th style={{ padding: '12px' }}>Mobile</th>
+                        <th style={{ padding: '12px' }}>Date</th>
+                        <th style={{ padding: '12px' }}>Rating</th>
+                        <th style={{ padding: '12px' }}>Feedback Details</th>
+                        <th style={{ padding: '12px' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {feedbackList.map((fb, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '12px', fontWeight: '600' }}>{fb.name}</td>
+                          <td style={{ padding: '12px', color: 'var(--accent-cyan)' }}>{fb.patientId}</td>
+                          <td style={{ padding: '12px' }}>{fb.mobile}</td>
+                          <td style={{ padding: '12px' }}>{fb.date}</td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{ color: fb.rating >= 4 ? 'var(--accent-emerald)' : 'var(--accent-rose)', fontWeight: '800', letterSpacing: '2px' }}>
+                              {'★'.repeat(fb.rating)}{'☆'.repeat(5-fb.rating)}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', color: 'var(--text-secondary)', maxWidth: '250px' }}>{fb.details}</td>
+                          <td style={{ padding: '12px' }}><button className="btn btn-glass" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>View / Reply</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {adminSubTab === 'compliance' && (
+                <div className="glass-panel animate-slide-up" style={{ padding: '24px', borderRadius: 'var(--radius-lg)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-rose)' }}>
+                    🛡️ Effortless Compliance & Audit Logs
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>Immutable activity logs ensuring regulatory compliance and accreditation standards.</p>
+                  
+                  <div style={{ background: '#1e293b', borderRadius: 'var(--radius-md)', padding: '4px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem', color: '#e2e8f0' }}>
+                      <thead style={{ background: '#0f172a' }}>
+                        <tr>
+                          <th style={{ padding: '12px', borderBottom: '1px solid #334155' }}>Log ID</th>
+                          <th style={{ padding: '12px', borderBottom: '1px solid #334155' }}>Timestamp</th>
+                          <th style={{ padding: '12px', borderBottom: '1px solid #334155' }}>User / Role</th>
+                          <th style={{ padding: '12px', borderBottom: '1px solid #334155' }}>Category</th>
+                          <th style={{ padding: '12px', borderBottom: '1px solid #334155' }}>Action Description</th>
+                          <th style={{ padding: '12px', borderBottom: '1px solid #334155' }}>IP / Node</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map((log) => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid #334155' }}>
+                            <td style={{ padding: '12px', color: '#94a3b8' }}>{log.id}</td>
+                            <td style={{ padding: '12px', color: '#cbd5e1' }}>{log.time}</td>
+                            <td style={{ padding: '12px', fontWeight: '600', color: '#38bdf8' }}>{log.user}</td>
+                            <td style={{ padding: '12px' }}>
+                              <span style={{ padding: '2px 6px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.7rem' }}>{log.type}</span>
+                            </td>
+                            <td style={{ padding: '12px' }}>{log.action}</td>
+                            <td style={{ padding: '12px', fontFamily: 'monospace', color: '#94a3b8' }}>{log.ip}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
         </main>
       </div>
 
+      {/* ============================================= */}
+      {/* 🔥 EMERGENCY INTERCEPT OVERLAY (GLOBAL)        */}
+      {/* ============================================= */}
+      {activeEmergencyOverlay && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+          background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'pulseOpacity 1.5s infinite'
+        }}>
+          <div style={{
+            width: '500px', padding: '40px', textAlign: 'center', borderRadius: '16px',
+            background: activeEmergencyOverlay.type === 'CODE_BLUE' ? '#1e3a8a' : '#9f1239',
+            border: '4px solid #fff', boxShadow: '0 0 100px rgba(255,0,0,0.5)'
+          }}>
+            <ShieldAlert size={64} color="#fff" style={{ marginBottom: '20px', display: 'inline-block' }} />
+            <h1 style={{ color: '#fff', fontSize: '2.5rem', fontWeight: '900', marginBottom: '10px' }}>
+              {activeEmergencyOverlay.type === 'CODE_BLUE' ? "🚨 CODE BLUE" : "⚠️ STAT ALERT"}
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1rem', fontWeight: '600', marginBottom: '30px' }}>
+              FROM: {activeEmergencyOverlay.sender}<br/>
+              TARGET: {activeEmergencyOverlay.target}
+            </p>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '20px', borderRadius: '8px', marginBottom: '30px' }}>
+              <p style={{ color: '#fff', fontSize: '1.2rem', fontWeight: '700', fontStyle: 'italic' }}>"{activeEmergencyOverlay.msg}"</p>
+            </div>
+            <button 
+              onClick={() => setActiveEmergencyOverlay(null)}
+              style={{ 
+                background: '#fff', color: '#000', border: 'none', padding: '16px 40px',
+                fontSize: '1.1rem', fontWeight: '800', borderRadius: '8px', cursor: 'pointer'
+              }}
+            >
+              ACKNOWLEDGE & RESPOND
+            </button>
+          </div>
+          <style>{`
+            @keyframes pulseOpacity {
+              0% { background: rgba(159,18,57,0.4); }
+              50% { background: rgba(159,18,57,0.7); }
+              100% { background: rgba(159,18,57,0.4); }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* 📤 DISPATCH CREATOR MODAL                      */}
+      {/* ============================================= */}
+      {isDispatchModalOpen && (
+        <div className="modal-overlay animate-fade-in" style={{ 
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', 
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000 
+        }}>
+          <div className="glass-panel animate-scale-up" style={{ width: '420px', padding: '24px', border: '1px solid rgba(255,255,255,0.1)', background: 'var(--bg-card)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Zap size={20} color="var(--accent-amber)" /> Inter-Dept Dispatch
+              </h2>
+              <button onClick={() => setIsDispatchModalOpen(false)} className="btn btn-glass" style={{ padding: '4px 8px' }}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>RECEIVING DEPARTMENT</label>
+                <select id="dispatchTarget" className="form-control" style={{ width: '100%', background: '#111', color: '#fff', height: '40px' }}>
+                  <option value="PHARMACY">Pharmacy Desk</option>
+                  <option value="LAB">Laboratory Terminal</option>
+                  <option value="RAD">Radiology PACS</option>
+                  <option value="MMS">Central Supplies (MMS)</option>
+                  <option value="ER">Emergency Room</option>
+                  <option value="GLOBAL">Global Broadcast</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>PRIORITY CLASSIFICATION</label>
+                <select id="dispatchPriority" className="form-control" style={{ width: '100%', background: '#111', color: '#fff', height: '40px' }}>
+                  <option value="ROUTINE">Routine Operation</option>
+                  <option value="STAT">⚠️ STAT (Immediate Action)</option>
+                  <option value="CODE_BLUE">🚨 CODE BLUE (CRITICAL)</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '6px' }}>DATA PAYLOAD / INSTRUCTION</label>
+                <textarea id="dispatchMsg" rows={3} className="form-control" style={{ resize: 'none', width: '100%', padding: '10px', background: '#111', color: '#fff' }} placeholder="e.g. Patient ID 4512 requires STAT Blood Gas Kit..."></textarea>
+              </div>
+              <button 
+                onClick={() => {
+                  const t = document.getElementById('dispatchTarget').value;
+                  const p = document.getElementById('dispatchPriority').value;
+                  const m = document.getElementById('dispatchMsg').value;
+                  if(!m) return;
+                  sendDispatch(t, m, p);
+                }}
+                className="btn btn-emerald" style={{ height: '46px', fontWeight: '800', marginTop: '10px' }}>
+                INITIATE TRANSMISSION
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================= */}
+      {/* 📥 GLOBAL INBOX DRAWER (NORMAL SCENARIOS)      */}
+      {/* ============================================= */}
+      {isInboxOpen && (
+        <div 
+          className="animate-slide-left"
+          style={{
+            position: 'fixed', top: '70px', right: '20px', width: '360px', bottom: '20px', zIndex: 8000,
+            background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(24px)',
+            borderRadius: 'var(--radius-lg)', border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden'
+          }}
+        >
+          <div style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Bell size={18} color="var(--accent-cyan)" /> Institutional Inbox
+              </h3>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Routine & Stat event cascade</p>
+            </div>
+            <button onClick={() => setIsInboxOpen(false)} className="btn btn-glass" style={{ padding: '4px 8px', fontSize: '0.7rem' }}>✕</button>
+          </div>
+          
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {dispatchQueue.length === 0 ? (
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '40px' }}>Inbox is empty.</p>
+            ) : (
+              dispatchQueue.map((d) => (
+                <div key={d.id} style={{ 
+                  padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.03)',
+                  borderLeft: `4px solid ${d.type === 'STAT' || d.type === 'CODE_BLUE' ? 'var(--accent-rose)' : 'var(--accent-cyan)'}`
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                    <div className="badge badge-glass" style={{ fontSize: '0.6rem', fontWeight: '700' }}>
+                      {d.sender} ➡️ {d.target}
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{d.time}</span>
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: '1.4' }}>{d.msg}</p>
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '6px' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: '700', color: d.type === 'STAT' || d.type === 'CODE_BLUE' ? 'var(--accent-rose)' : 'var(--accent-emerald)' }}>
+                      ● {d.type === 'ROUTINE' ? 'ROUTINE PAYLOAD' : 'PRIORITY ALERT'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
