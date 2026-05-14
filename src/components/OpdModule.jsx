@@ -1,5 +1,19 @@
-import React from 'react';
-import { Ticket, Users, CheckCircle, FileText, Plus, Stethoscope, Clipboard } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Ticket, Users, CheckCircle, FileText, Plus, Stethoscope, Clipboard, Pill, TestTube, Activity, Search, Save, Send, AlertCircle, HeartPulse, X } from 'lucide-react';
+
+const DRUG_MASTER = [
+  { code: 'PCM', name: 'Tab Paracetamol', dose: '500mg' },
+  { code: 'PKT', name: 'Tab Panadol', dose: '650mg' },
+  { code: 'AMX', name: 'Cap Amoxicillin', dose: '500mg' },
+  { code: 'AZI', name: 'Tab Azithromycin', dose: '500mg' },
+  { code: 'IBU', name: 'Tab Ibuprofen', dose: '400mg' },
+  { code: 'PAN', name: 'Tab Pantoprazole', dose: '40mg' },
+  { code: 'CET', name: 'Tab Cetirizine', dose: '10mg' },
+  { code: 'BCO', name: 'Cap B-Complex', dose: '1 Cap' },
+  { code: 'CFL', name: 'Tab Ciprofloxacin', dose: '500mg' },
+  { code: 'AUG', name: 'Tab Augmentin', dose: '625mg' },
+  { code: 'ASP', name: 'Tab Aspirin', dose: '75mg' }
+];
 
 export default function OpdModule({
   opQueue,
@@ -24,74 +38,148 @@ export default function OpdModule({
   handlePostCharge,
   setLabOrders,
   setRadiologyOrders,
-  setPharmacyOrders
+  setPharmacyOrders,
+  setActiveTab
 }) {
+
+  // CPOE (Computerized Physician Order Entry) Local States
+  const [rxList, setRxList] = useState([]);
+  const [rxDrug, setRxDrug] = useState('');
+  const [rxDose, setRxDose] = useState('');
+  const [rxFreq, setRxFreq] = useState('1-0-1');
+  const [rxDuration, setRxDuration] = useState('');
+  const [rxInstructions, setRxInstructions] = useState('After Food');
+  const [showDrugSuggestions, setShowDrugSuggestions] = useState(false);
+  const [isRxSent, setIsRxSent] = useState(false);
+  const [isLabSent, setIsLabSent] = useState(false);
+
+  const [labTestList, setLabTestList] = useState([]);
+  const [labTestInput, setLabTestInput] = useState('');
+
+  // Sync internal structured state with the external string state
+  useEffect(() => {
+    if (rxList.length > 0) {
+      const rxString = rxList.map((rx, i) => `${i + 1}. ${rx.drug} ${rx.dose} (${rx.freq}) for ${rx.duration} - ${rx.instructions}`).join('\n');
+      setConsultPrescription(rxString);
+    } else {
+      setConsultPrescription('');
+    }
+  }, [rxList, setConsultPrescription]);
 
   const handleStartConsultation = (token) => {
     setOpQueue(prev => prev.map(p => p.tokenNo === token.tokenNo ? { ...p, status: 'In Consultation' } : p));
     setSelectedConsultToken(token);
     setOpQueueSubTab('consult');
     addNotification("Consultation Started", `Started consultation for ${token.name} (${token.tokenNo})`, "info");
+    
+    // Reset local CPOE states for new patient
+    setRxList([]);
+    setLabTestList([]);
+    setRxDrug(''); setRxDose(''); setRxDuration('');
+  };
+
+  const addRxItem = () => {
+    if (!rxDrug) {
+      addNotification("Validation Error", "Drug name is required.", "error");
+      return;
+    }
+    setRxList([...rxList, { drug: rxDrug, dose: rxDose, freq: rxFreq, duration: rxDuration || 'As needed', instructions: rxInstructions }]);
+    setRxDrug(''); setRxDose(''); setRxDuration('');
+  };
+
+  const addLabTest = () => {
+    if (!labTestInput) return;
+    setLabTestList([...labTestList, labTestInput]);
+    setLabTestInput('');
+  };
+
+  // Dedicated Button: Transfer Rx to Pharmacy
+  const handleSendToPharmacy = (e) => {
+    e.preventDefault();
+    if (rxList.length === 0) {
+      addNotification("Empty Prescription", "Please add medicines before sending to Pharmacy.", "warning");
+      return;
+    }
+    
+    const uhid = selectedConsultToken.uhid;
+    const patientName = selectedConsultToken.name;
+    const rxString = rxList.map(rx => {
+      let f = 1;
+      if (rx.freq === '1-0-1') f = 2;
+      else if (rx.freq === '1-1-1') f = 3;
+      else if (rx.freq === '1-0-0' || rx.freq === '0-0-1') f = 1;
+      
+      let d = parseInt(rx.duration) || 5; 
+      let qty = f * d;
+      
+      // Clean prefix for better pharmacy matching
+      let cleanName = rx.drug.replace(/^(Tab |Cap |Syr )/i, '').trim();
+      
+      return `${cleanName} ${rx.dose} x${qty}`;
+    }).join(', ');
+
+    setPharmacyOrders(prev => [
+      ...prev,
+      {
+        id: "RX-" + Math.floor(100 + Math.random() * 900),
+        uhid: uhid,
+        patientName: patientName,
+        medicines: rxString,
+        status: "Pending",
+        timestamp: "Today, " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ]);
+    
+    addNotification("Rx Dispatched", "Prescription successfully sent to Central Pharmacy Terminal.", "success");
+    
+    // Button animation feedback
+    setIsRxSent(true);
+    setTimeout(() => setIsRxSent(false), 2000);
+  };
+
+  // Dedicated Button: Order Lab Tests
+  const handleSendToLab = (e) => {
+    e.preventDefault();
+    if (labTestList.length === 0) {
+      addNotification("Empty Order", "Please add at least one test before sending to Lab.", "warning");
+      return;
+    }
+
+    const uhid = selectedConsultToken.uhid;
+    const patientName = selectedConsultToken.name;
+
+    setLabOrders(prev => [
+      ...prev,
+      {
+        id: "LAB-" + Math.floor(1000 + Math.random() * 9000).toString(),
+        uhid: uhid,
+        patientName: patientName,
+        testName: labTestList.join(', '),
+        status: "Sample Pending", // Aligning with new LIS Enterprise workflow
+        timestamp: new Date().toLocaleString()
+      }
+    ]);
+    
+    // Auto post charge for ordered labs
+    handlePostCharge(uhid, `LIS Orders: ${labTestList.join(', ')}`, labTestList.length * 450, "Lab_Desk");
+    addNotification("Lab Orders Sent", "Diagnostic tests securely routed to LIS Terminal.", "success");
+
+    // Button animation feedback
+    setIsLabSent(true);
+    setTimeout(() => setIsLabSent(false), 2000);
   };
 
   const handleCompleteConsultation = (e) => {
     e.preventDefault();
     if (!selectedConsultToken) return;
 
-    const uhid = selectedConsultToken.uhid;
-    const patientName = selectedConsultToken.name;
-
     // 1. Mark Queue Token as Complete
     setOpQueue(prev => prev.map(p => p.tokenNo === selectedConsultToken.tokenNo ? { ...p, status: 'Completed' } : p));
 
-    // 2. Dispatch Lab Orders if any
-    if (consultOrderedServices.includes('Lab Tests')) {
-      setLabOrders(prev => [
-        ...prev,
-        {
-          id: "LAB-" + Math.floor(100 + Math.random() * 900),
-          uhid: uhid,
-          patientName: patientName,
-          testName: "Doctor Prescribed Lab Panel",
-          status: "Pending",
-          timestamp: "Today, " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-      handlePostCharge(uhid, "OPD Consult Lab Panel Ordered", 750, "OPD_Consult");
-    }
+    // Post charge for Doctor Consultation
+    handlePostCharge(selectedConsultToken.uhid, `OPD Consultation - Dr. ${selectedConsultToken.doctor}`, 600, "OPD_Consult");
 
-    // 3. Dispatch Radiology if any
-    if (consultOrderedServices.includes('X-Ray/Scan')) {
-      setRadiologyOrders(prev => [
-        ...prev,
-        {
-          id: "RAD-" + Math.floor(100 + Math.random() * 900),
-          uhid: uhid,
-          patientName: patientName,
-          scanType: "Doctor Prescribed Scan",
-          status: "Pending",
-          timestamp: "Today, " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-      handlePostCharge(uhid, "OPD Consult Radiology Ordered", 1200, "OPD_Consult");
-    }
-
-    // 4. Dispatch Prescription to Pharmacy if not empty
-    if (consultPrescription.trim()) {
-      setPharmacyOrders(prev => [
-        ...prev,
-        {
-          id: "RX-" + Math.floor(100 + Math.random() * 900),
-          uhid: uhid,
-          patientName: patientName,
-          medicines: consultPrescription,
-          status: "Pending",
-          timestamp: "Today, " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
-    }
-
-    addNotification("Consultation Finished", `Saved visit data for ${patientName}. Patient routed to next node.`, "success");
+    addNotification("Consultation Finished", `Consultation completed for ${selectedConsultToken.name}. Billing updated.`, "success");
     
     // Reset Form
     setSelectedConsultToken(null);
@@ -100,15 +188,9 @@ export default function OpdModule({
     setConsultNotes('');
     setConsultOrderedServices([]);
     setConsultPrescription('');
+    setRxList([]);
+    setLabTestList([]);
     setOpQueueSubTab('queue');
-  };
-
-  const toggleService = (service) => {
-    if (consultOrderedServices.includes(service)) {
-      setConsultOrderedServices(prev => prev.filter(s => s !== service));
-    } else {
-      setConsultOrderedServices(prev => [...prev, service]);
-    }
   };
 
   return (
@@ -131,7 +213,7 @@ export default function OpdModule({
           className={`btn ${opQueueSubTab === 'consult' ? 'btn-emerald' : 'btn-glass'}`} 
           style={{ flex: 1, fontWeight: '700', fontSize: '0.85rem', gap: '8px', opacity: selectedConsultToken ? 1 : 0.5 }}
         >
-          <FileText size={16} /> Consultant Desk
+          <Stethoscope size={16} /> Doctor's EMR Window
         </button>
       </div>
 
@@ -142,10 +224,10 @@ export default function OpdModule({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                 <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Users /> Token Dispatch & Status Board
+                  <Users /> Waiting Room Board
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Real-time management of walk-in and pre-booked consultations.
+                  Select "Call Next" to begin a clinical assessment.
                 </p>
               </div>
               <div className="badge badge-glass" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
@@ -210,7 +292,7 @@ export default function OpdModule({
                             className="btn btn-emerald" 
                             style={{ padding: '6px 12px', fontSize: '0.75rem', fontWeight: '700' }}
                           >
-                            Resume Consult
+                            Resume EMR
                           </button>
                         )}
                         {item.status === 'Completed' && (
@@ -226,144 +308,260 @@ export default function OpdModule({
         </div>
       )}
 
-      {/* ================= CONSULTATION VIEW ================= */}
+      {/* ================= EMR CONSULTATION VIEW (DOCTOR'S WINDOW) ================= */}
       {opQueueSubTab === 'consult' && selectedConsultToken && (
         <div className="animate-slide-up">
-          <form onSubmit={handleCompleteConsultation} style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '20px' }}>
+          <form style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
             
-            {/* MAIN WORKSPACE */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderLeft: '4px solid var(--accent-emerald)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+            {/* LEFT: CLINICAL DOCUMENTATION */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: '1 1 500px', minWidth: 0 }}>
+              
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderLeft: '4px solid var(--accent-cyan)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                   <div>
-                    <h4 style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Currently Assessing</h4>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginTop: '4px' }}>{selectedConsultToken.name}</h2>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)' }}>
-                      {selectedConsultToken.uhid} • {selectedConsultToken.gender}, {selectedConsultToken.age} Years
+                    <h2 style={{ fontSize: '1.6rem', fontWeight: '800' }}>{selectedConsultToken.name}</h2>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>
+                      {selectedConsultToken.uhid} • {selectedConsultToken.gender}, {selectedConsultToken.age} Years • Dr. {selectedConsultToken.doctor}
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span className="badge badge-emerald" style={{ padding: '8px 16px', fontSize: '0.9rem', fontWeight: '900' }}>
-                      {selectedConsultToken.tokenNo}
+                      TOKEN: {selectedConsultToken.tokenNo}
                     </span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Vitals Summary */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><Activity size={12}/> BP (mmHg)</span>
+                      <input type="text" placeholder="120/80" className="form-control" style={{ background: 'transparent', border: 'none', padding: '4px 0', fontSize: '1rem', fontWeight: '700' }} />
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><HeartPulse size={12}/> Pulse (bpm)</span>
+                      <input type="text" placeholder="78" className="form-control" style={{ background: 'transparent', border: 'none', padding: '4px 0', fontSize: '1rem', fontWeight: '700' }} />
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>SpO2 (%)</span>
+                      <input type="text" placeholder="98%" className="form-control" style={{ background: 'transparent', border: 'none', padding: '4px 0', fontSize: '1rem', fontWeight: '700' }} />
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Temp (°F)</span>
+                      <input type="text" placeholder="98.6" className="form-control" style={{ background: 'transparent', border: 'none', padding: '4px 0', fontSize: '1rem', fontWeight: '700' }} />
+                    </div>
+                  </div>
+
                   <div>
                     <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
-                      Chief Complaints & Vitals
+                      Chief Complaints (HPI)
                     </label>
                     <textarea 
-                      placeholder="Enter present complaints, BP, SpO2, Weight etc..."
+                      placeholder="Patient presents with..."
                       className="form-control"
                       style={{ width: '100%', minHeight: '80px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
                       value={consultChiefComplaint}
                       onChange={e => setConsultChiefComplaint(e.target.value)}
-                      required
                     />
                   </div>
                   
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
-                      Provisional Diagnosis
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: 'var(--accent-amber)' }}>
+                      Provisional Diagnosis (ICD-10)
                     </label>
-                    <input 
-                      type="text"
-                      placeholder="e.g. Acute Pharyngitis, Viral Fever..."
-                      className="form-control"
-                      style={{ width: '100%', height: '42px', background: 'rgba(0,0,0,0.2)' }}
-                      value={consultDiagnosis}
-                      onChange={e => setConsultDiagnosis(e.target.value)}
-                    />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <input 
+                        type="text"
+                        placeholder="Search disease or enter ICD-10 code..."
+                        className="form-control"
+                        style={{ flex: 1, height: '42px', background: 'rgba(0,0,0,0.2)' }}
+                        value={consultDiagnosis}
+                        onChange={e => setConsultDiagnosis(e.target.value)}
+                      />
+                      <button type="button" className="btn btn-glass"><Search size={16}/></button>
+                    </div>
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>💊 Prescription / Medication Management</span>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Routes automatically to Pharmacy Desk</span>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+                      Clinical Notes & Plan
                     </label>
                     <textarea 
-                      placeholder="e.g. Tab. Calpol 650mg (1-0-1) x 5 Days..."
+                      placeholder="Internal remarks and treatment plan..."
                       className="form-control"
-                      style={{ width: '100%', minHeight: '120px', background: 'rgba(16, 185, 129, 0.03)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '12px', fontFamily: 'monospace' }}
-                      value={consultPrescription}
-                      onChange={e => setConsultPrescription(e.target.value)}
+                      style={{ width: '100%', minHeight: '80px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
+                      value={consultNotes}
+                      onChange={e => setConsultNotes(e.target.value)}
                     />
                   </div>
                 </div>
               </div>
-
-              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '12px' }}>
-                  Clinical Notes & Review Plan
-                </label>
-                <textarea 
-                  placeholder="Additional internal doctor notes..."
-                  className="form-control"
-                  style={{ width: '100%', minHeight: '60px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
-                  value={consultNotes}
-                  onChange={e => setConsultNotes(e.target.value)}
-                />
-              </div>
             </div>
 
-            {/* SIDE ACTIONS PANELS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* RIGHT: CPOE (PRESCRIPTION & INVESTIGATIONS) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: '1 1 400px', minWidth: 0 }}>
               
-              {/* ORDER SETS */}
-              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: '800', marginBottom: '12px', color: 'var(--accent-amber)' }}>
-                  ⚡ Diagnostic Dispatches
+              {/* DRUG PRESCRIPTION BUILDER */}
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', borderTop: '4px solid var(--accent-emerald)' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-emerald)' }}>
+                  <Pill size={18} /> Medication Order Entry (CPOE)
                 </h4>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>Selecting these creates instant parallel queues in corresponding labs.</p>
                 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div 
-                    onClick={() => toggleService('Lab Tests')}
-                    style={{ 
-                      padding: '12px', borderRadius: '8px', cursor: 'pointer', border: '1px solid', transition: '0.2s',
-                      background: consultOrderedServices.includes('Lab Tests') ? 'rgba(6, 182, 212, 0.1)' : 'rgba(255,255,255,0.02)',
-                      borderColor: consultOrderedServices.includes('Lab Tests') ? 'var(--accent-cyan)' : 'transparent'
-                    }}
-                  >
-                    <strong style={{ fontSize: '0.85rem', color: consultOrderedServices.includes('Lab Tests') ? 'var(--accent-cyan)' : '#fff' }}>
-                      {consultOrderedServices.includes('Lab Tests') ? '☑' : '☐'} Dispatch to LAB Terminal
-                    </strong>
-                    <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>Triggers CBC/Blood panel queue</span>
+                {/* Rx Form */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div style={{ gridColumn: 'span 2', position: 'relative' }}>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>Drug Name or Code (e.g., PKT, PCM)</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Tab Paracetamol or PKT" 
+                      className="form-control" 
+                      style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }} 
+                      value={rxDrug} 
+                      onChange={e => { setRxDrug(e.target.value); setShowDrugSuggestions(true); }} 
+                      onFocus={() => setShowDrugSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowDrugSuggestions(false), 200)}
+                    />
+                    {showDrugSuggestions && rxDrug && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid var(--border-color)', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 10, maxHeight: '150px', overflowY: 'auto' }}>
+                        {DRUG_MASTER.filter(d => d.code.toLowerCase().includes(rxDrug.toLowerCase()) || d.name.toLowerCase().includes(rxDrug.toLowerCase())).map(drug => (
+                          <div 
+                            key={drug.code} 
+                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            onMouseDown={() => {
+                              setRxDrug(drug.name);
+                              if (!rxDose) setRxDose(drug.dose);
+                              setShowDrugSuggestions(false);
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{drug.name}</span>
+                            <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>{drug.code}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  <div 
-                    onClick={() => toggleService('X-Ray/Scan')}
-                    style={{ 
-                      padding: '12px', borderRadius: '8px', cursor: 'pointer', border: '1px solid', transition: '0.2s',
-                      background: consultOrderedServices.includes('X-Ray/Scan') ? 'rgba(139, 92, 246, 0.1)' : 'rgba(255,255,255,0.02)',
-                      borderColor: consultOrderedServices.includes('X-Ray/Scan') ? 'var(--accent-purple)' : 'transparent'
-                    }}
-                  >
-                    <strong style={{ fontSize: '0.85rem', color: consultOrderedServices.includes('X-Ray/Scan') ? 'var(--accent-purple)' : '#fff' }}>
-                      {consultOrderedServices.includes('X-Ray/Scan') ? '☑' : '☐'} Dispatch to RADIOLOGY
-                    </strong>
-                    <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>Triggers PACS scanning request</span>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>Dosage</label>
+                    <input type="text" placeholder="e.g. 500mg" className="form-control" style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }} value={rxDose} onChange={e => setRxDose(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>Frequency</label>
+                    <select className="form-control" style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }} value={rxFreq} onChange={e => setRxFreq(e.target.value)}>
+                      <option value="1-0-1">1-0-1 (BD)</option>
+                      <option value="1-1-1">1-1-1 (TDS)</option>
+                      <option value="1-0-0">1-0-0 (OD - Morning)</option>
+                      <option value="0-0-1">0-0-1 (OD - Night)</option>
+                      <option value="SOS">SOS (As needed)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>Duration</label>
+                    <input type="text" placeholder="e.g. 5 Days" className="form-control" style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }} value={rxDuration} onChange={e => setRxDuration(e.target.value)} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>Instructions</label>
+                    <select className="form-control" style={{ width: '100%', padding: '8px', fontSize: '0.85rem' }} value={rxInstructions} onChange={e => setRxInstructions(e.target.value)}>
+                      <option>After Food</option>
+                      <option>Before Food</option>
+                      <option>Empty Stomach</option>
+                    </select>
                   </div>
                 </div>
+                
+                <button type="button" onClick={addRxItem} className="btn btn-glass" style={{ width: '100%', padding: '8px', fontSize: '0.85rem', fontWeight: '700', marginBottom: '16px' }}>
+                  <Plus size={14} /> Add Medicine to List
+                </button>
+
+                {/* Rx List */}
+                <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', padding: '12px', minHeight: '120px', maxHeight: '180px', overflowY: 'auto' }}>
+                  {rxList.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '20px' }}>No medicines prescribed yet.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {rxList.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '4px' }}>
+                          <div>
+                            <div style={{ fontWeight: '700', fontSize: '0.85rem', color: 'var(--text-primary)' }}>{item.drug} <span style={{ color: 'var(--accent-cyan)' }}>{item.dose}</span></div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{item.freq} • {item.duration} • {item.instructions}</div>
+                          </div>
+                          <X size={14} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => setRxList(rxList.filter((_, i) => i !== idx))} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* DISPATCH TO PHARMACY BUTTON */}
+                <button 
+                  type="button" 
+                  onClick={handleSendToPharmacy}
+                  className="btn btn-emerald" 
+                  style={{ width: '100%', marginTop: '16px', padding: '12px', fontWeight: '800', gap: '8px', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)', transition: '0.3s' }}
+                >
+                  {isRxSent ? (
+                    <><CheckCircle size={16} /> Sent to Pharmacy!</>
+                  ) : (
+                    <><Send size={16} /> Transfer e-Prescription to Pharmacy</>
+                  )}
+                </button>
+              </div>
+
+              {/* LAB / RADIOLOGY ORDERS */}
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', borderTop: '4px solid var(--accent-purple)' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-purple)' }}>
+                  <TestTube size={18} /> Diagnostic Orders
+                </h4>
+                
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Search Lab Test (e.g., CBC, HbA1c)..." 
+                    className="form-control" 
+                    style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }} 
+                    value={labTestInput} 
+                    onChange={e => setLabTestInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addLabTest())}
+                  />
+                  <button type="button" onClick={addLabTest} className="btn btn-glass" style={{ padding: '8px 12px' }}><Plus size={16}/></button>
+                </div>
+
+                {/* Lab List */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '16px' }}>
+                  {labTestList.map((test, idx) => (
+                    <span key={idx} style={{ background: 'rgba(139, 92, 246, 0.2)', color: '#ddd', padding: '4px 8px', borderRadius: '16px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {test} <X size={10} style={{ cursor: 'pointer' }} onClick={() => setLabTestList(labTestList.filter((_, i) => i !== idx))} />
+                    </span>
+                  ))}
+                  {labTestList.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No tests selected.</span>}
+                </div>
+
+                {/* DISPATCH TO LAB BUTTON */}
+                <button 
+                  type="button" 
+                  onClick={handleSendToLab}
+                  className="btn btn-purple" 
+                  style={{ width: '100%', padding: '12px', fontWeight: '800', gap: '8px', boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)', transition: '0.3s' }}
+                >
+                  {isLabSent ? (
+                    <><CheckCircle size={16} /> Sent to LIS!</>
+                  ) : (
+                    <><Send size={16} /> Send Orders to LIS / Pathology</>
+                  )}
+                </button>
               </div>
 
               {/* DISPOSITION */}
-              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', background: 'rgba(16, 185, 129, 0.02)' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: '800', marginBottom: '16px' }}>
-                  🏁 Finish Consultation
-                </h4>
+              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', background: 'rgba(6, 182, 212, 0.05)', marginTop: 'auto' }}>
                 <button 
-                  type="submit" 
-                  className="btn btn-emerald" 
+                  type="button" 
+                  onClick={handleCompleteConsultation}
+                  className="btn btn-cyan" 
                   style={{ width: '100%', height: '50px', fontWeight: '800', fontSize: '1rem', gap: '8px' }}
                 >
-                  <CheckCircle size={18} /> Save & Discharge OP
+                  <CheckCircle size={18} /> Complete Consult & Discharge
                 </button>
-                <p style={{ textAlign: 'center', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '12px' }}>
-                  Generates immutable consult charges automatically upon save.
-                </p>
               </div>
 
             </div>

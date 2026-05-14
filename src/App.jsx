@@ -5,7 +5,7 @@ import {
   Trash2, FileText, CheckCircle, Smartphone, Monitor,
   Layers, Package, AlertTriangle, ShieldCheck, TrendingUp, Clock,
   ShieldAlert, Store, MessageSquare, RotateCcw, Ticket,
-  Save, Printer, X, CreditCard
+  Save, Printer, X, CreditCard, Stethoscope
 } from 'lucide-react';
 
 // Modular Imports for Expanded Scenarios
@@ -56,6 +56,7 @@ export default function App() {
       { user: 'op_clerk', pass: 'op', role: 'OP_STAFF', defaultTab: 'op' },
       { user: 'er_doc', pass: 'er', role: 'ER_STAFF', defaultTab: 'er' },
       { user: 'lab_tech', pass: 'lab', role: 'LAB_STAFF', defaultTab: 'lab' },
+      { user: 'doctor', pass: 'doctor', role: 'DOCTOR', defaultTab: 'opqueue' },
       { user: 'rad_tech', pass: 'radiology', role: 'RAD_STAFF', defaultTab: 'radiology' },
       { user: 'pharmacist', pass: 'pharmacy', role: 'PHARM_STAFF', defaultTab: 'pharmacy' },
       { user: 'mms_admin', pass: 'inventory', role: 'MMS_STAFF', defaultTab: 'inventory' }
@@ -117,15 +118,66 @@ export default function App() {
     { id: '11', name: 'COMPLETE URINE TEST PROFILE', price: 100, discountPercent: 0, discountAmount: 0, taxPercent: 0, taxAmount: 0 }
   ]);
   const labMasterTests = [
-    { id: '12', name: 'BLOOD COMPLETE TEST PROFILE', price: 300 },
-    { id: '5', name: 'BIO CHEMISTRY TEST PROFILE', price: 500 },
-    { id: '11', name: 'COMPLETE URINE TEST PROFILE', price: 100 },
-    { id: '78', name: 'Test', price: 2000 },
-    { id: '30', name: 'SPECIAL CHEMISTRY REPORT', price: 0 },
-    { id: '38', name: 'RENAL FUNCTION TEST PROFILE', price: 450 },
-    { id: '14', name: 'MISCELLINIOUS TEST PROFILE', price: 400 },
-    { id: '15', name: 'CARDIAC TEST PROFILE', price: 100 },
-    { id: '16', name: 'LIVER FUNCTION TEST PROFILE', price: 100 }
+    // ── Profiles (bundles) ──
+    { id: 'P01', name: 'Complete Blood Count (CBC)', price: 300, category: 'Hematology', type: 'profile' },
+    { id: 'P02', name: 'Lipid Profile (Full)', price: 500, category: 'Biochemistry', type: 'profile' },
+    { id: 'P03', name: 'Renal Function Test (RFT) Profile', price: 450, category: 'Biochemistry', type: 'profile' },
+    { id: 'P04', name: 'Liver Function Test (LFT) Profile', price: 600, category: 'Biochemistry', type: 'profile' },
+    { id: 'P05', name: 'Thyroid Profile (TSH + T3 + T4)', price: 700, category: 'Endocrinology', type: 'profile' },
+    { id: 'P06', name: 'Diabetes Panel (FBS + PPBS + HbA1c)', price: 550, category: 'Endocrinology', type: 'profile' },
+    { id: 'P07', name: 'Cardiac Risk Panel', price: 800, category: 'Cardiology', type: 'profile' },
+    { id: 'P08', name: 'Electrolyte Panel', price: 350, category: 'Biochemistry', type: 'profile' },
+    { id: 'P09', name: 'Complete Urine Examination (CUE)', price: 100, category: 'Urine', type: 'profile' },
+    { id: 'P10', name: 'Bio Chemistry Test Profile', price: 500, category: 'Biochemistry', type: 'profile' },
+    // ── Hematology — Individual ──
+    { id: 'H01', name: 'Hemoglobin (Hb)', price: 80, category: 'Hematology', type: 'individual' },
+    { id: 'H02', name: 'Hematocrit (PCV)', price: 80, category: 'Hematology', type: 'individual' },
+    { id: 'H03', name: 'ESR (Erythrocyte Sedimentation Rate)', price: 120, category: 'Hematology', type: 'individual' },
+    { id: 'H04', name: 'Peripheral Smear Examination', price: 200, category: 'Hematology', type: 'individual' },
+    { id: 'H05', name: 'Reticulocyte Count', price: 150, category: 'Hematology', type: 'individual' },
+    { id: 'H06', name: 'Platelet Count', price: 100, category: 'Hematology', type: 'individual' },
+    // ── Biochemistry — Individual ──
+    { id: 'B01', name: 'Serum Creatinine', price: 120, category: 'Biochemistry', type: 'individual' },
+    { id: 'B02', name: 'Blood Urea Nitrogen (BUN)', price: 100, category: 'Biochemistry', type: 'individual' },
+    { id: 'B03', name: 'Serum Uric Acid', price: 130, category: 'Biochemistry', type: 'individual' },
+    { id: 'B04', name: 'Serum Sodium (Na+)', price: 100, category: 'Biochemistry', type: 'individual' },
+    { id: 'B05', name: 'Serum Potassium (K+)', price: 100, category: 'Biochemistry', type: 'individual' },
+    { id: 'B06', name: 'Serum Calcium (Total)', price: 120, category: 'Biochemistry', type: 'individual' },
+    { id: 'B07', name: 'Serum Albumin', price: 110, category: 'Biochemistry', type: 'individual' },
+    { id: 'B08', name: 'Total Bilirubin', price: 110, category: 'Biochemistry', type: 'individual' },
+    { id: 'B09', name: 'Direct Bilirubin', price: 110, category: 'Biochemistry', type: 'individual' },
+    { id: 'B10', name: 'ALT / SGPT', price: 130, category: 'Biochemistry', type: 'individual' },
+    { id: 'B11', name: 'AST / SGOT', price: 130, category: 'Biochemistry', type: 'individual' },
+    { id: 'B12', name: 'Alkaline Phosphatase (ALP)', price: 130, category: 'Biochemistry', type: 'individual' },
+    { id: 'B13', name: 'Total Cholesterol', price: 130, category: 'Biochemistry', type: 'individual' },
+    { id: 'B14', name: 'HDL Cholesterol', price: 150, category: 'Biochemistry', type: 'individual' },
+    { id: 'B15', name: 'LDL Cholesterol (Direct)', price: 180, category: 'Biochemistry', type: 'individual' },
+    { id: 'B16', name: 'Triglycerides', price: 140, category: 'Biochemistry', type: 'individual' },
+    // ── Endocrinology — Individual ──
+    { id: 'E01', name: 'TSH (Thyroid Stimulating Hormone)', price: 350, category: 'Endocrinology', type: 'individual' },
+    { id: 'E02', name: 'Free T3 (Triiodothyronine)', price: 320, category: 'Endocrinology', type: 'individual' },
+    { id: 'E03', name: 'Free T4 (Thyroxine)', price: 320, category: 'Endocrinology', type: 'individual' },
+    { id: 'E04', name: 'Fasting Blood Glucose (FBS)', price: 80, category: 'Endocrinology', type: 'individual' },
+    { id: 'E05', name: 'Post-Prandial Blood Sugar (PPBS)', price: 80, category: 'Endocrinology', type: 'individual' },
+    { id: 'E06', name: 'HbA1c (Glycated Hemoglobin)', price: 380, category: 'Endocrinology', type: 'individual' },
+    { id: 'E07', name: 'Insulin (Fasting)', price: 600, category: 'Endocrinology', type: 'individual' },
+    // ── Microbiology ──
+    { id: 'M01', name: 'Blood Culture & Sensitivity', price: 900, category: 'Microbiology', type: 'individual' },
+    { id: 'M02', name: 'Urine Culture & Sensitivity', price: 700, category: 'Microbiology', type: 'individual' },
+    { id: 'M03', name: 'Stool Routine Examination', price: 150, category: 'Microbiology', type: 'individual' },
+    // ── Serology ──
+    { id: 'S01', name: 'HIV 1 & 2 Ag/Ab Combo (ELISA)', price: 500, category: 'Serology', type: 'individual' },
+    { id: 'S02', name: 'HBsAg (Hepatitis B Surface Antigen)', price: 350, category: 'Serology', type: 'individual' },
+    { id: 'S03', name: 'Anti-HCV Antibody', price: 450, category: 'Serology', type: 'individual' },
+    { id: 'S04', name: 'VDRL / RPR (Syphilis)', price: 250, category: 'Serology', type: 'individual' },
+    { id: 'S05', name: 'Widal Test (Typhoid)', price: 200, category: 'Serology', type: 'individual' },
+    { id: 'S06', name: 'CRP (C-Reactive Protein)', price: 350, category: 'Serology', type: 'individual' },
+    { id: 'S07', name: 'RA Factor (Rheumatoid Arthritis)', price: 300, category: 'Serology', type: 'individual' },
+    // ── Cardiology ──
+    { id: 'C01', name: 'Troponin I (High-Sensitivity)', price: 1200, category: 'Cardiology', type: 'individual' },
+    { id: 'C02', name: 'NT-proBNP (Heart Failure Marker)', price: 1500, category: 'Cardiology', type: 'individual' },
+    { id: 'C03', name: 'D-Dimer (Thrombosis)', price: 1100, category: 'Cardiology', type: 'individual' },
+    { id: 'C04', name: 'Coagulation Profile (PT/INR + APTT)', price: 500, category: 'Cardiology', type: 'individual' },
   ];
   const [labBookingPaid, setLabBookingPaid] = useState(0);
   const [labBookingGlobalDiscount, setLabBookingGlobalDiscount] = useState(0);
@@ -698,6 +750,9 @@ export default function App() {
               <div onClick={() => { setLoginUser('op_clerk'); setLoginPass('op'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                 <strong>OP Desk Clerk</strong><br/>user: `op_clerk` | pass: `op`
               </div>
+              <div onClick={() => { setLoginUser('doctor'); setLoginPass('doctor'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                <strong>Consulting Doctor</strong><br/>user: `doctor` | pass: `doctor`
+              </div>
               <div onClick={() => { setLoginUser('er_doc'); setLoginPass('er'); }} style={{ cursor: 'pointer', padding: '8px', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                 <strong>ER Commander</strong><br/>user: `er_doc` | pass: `er`
               </div>
@@ -865,6 +920,7 @@ export default function App() {
             <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '4px', fontFamily: 'var(--font-sans)', fontWeight: '700' }}>
               {userRole === 'SUPER_ADMIN' ? 'SUPER ADMIN' : 
                userRole === 'OP_STAFF' ? 'OP DESK CLERK' : 
+               userRole === 'DOCTOR' ? 'CONSULTING DOCTOR' :
                userRole === 'ER_STAFF' ? 'ER COMMANDER' :
                userRole === 'LAB_STAFF' ? 'LAB ANALYZER' :
                userRole === 'RAD_STAFF' ? 'RADIOLOGY PACS' :
@@ -916,9 +972,9 @@ export default function App() {
             </button>
           )}
 
-          {(userRole === 'SUPER_ADMIN' || userRole === 'OP_STAFF') && (
+          {(userRole === 'SUPER_ADMIN' || userRole === 'DOCTOR') && (
             <button onClick={() => setActiveTab('opqueue')} className={`btn btn-glass ${activeTab === 'opqueue' ? 'active' : ''}`} style={{ justifyContent: 'flex-start', width: '100%' }}>
-              <Ticket size={18} /> OP Queue & Consult
+              <Stethoscope size={18} /> EMR & CPOE Window
             </button>
           )}
 
@@ -3370,6 +3426,7 @@ export default function App() {
               consultPrescription={consultPrescription} setConsultPrescription={setConsultPrescription}
               addNotification={addNotification} handlePostCharge={handlePostCharge}
               setLabOrders={setLabOrders} setRadiologyOrders={setRadiologyOrders} setPharmacyOrders={setPharmacyOrders}
+              setActiveTab={setActiveTab}
             />
           )}
 

@@ -1,41 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Printer, MessageCircle, Save, X, CheckSquare, Search, FileText } from 'lucide-react';
 
 export default function LisResultIssuing({
-  // Mock props to receive from App.jsx or parent
   labOrder = null,
-  addNotification
+  labOrders = [],
+  addNotification,
+  setLabOrders,
+  setActiveIssuingOrder
 }) {
-  const [labNo, setLabNo] = useState(labOrder?.id || '3085');
-  const [name, setName] = useState(labOrder?.patientName || 'THOUSIK A');
-  const [ageGender, setAgeGender] = useState('15 Years / M');
+  const [labNo, setLabNo] = useState('');
+  const [name, setName] = useState('');
+  const [ageGender, setAgeGender] = useState('');
   const [corporateName, setCorporateName] = useState('AHALIA AYURVEDA MEDICAL COLLEGE');
   const [refBy, setRefBy] = useState('KUNHAHAMAD C M');
-  const [paymentStatus, setPaymentStatus] = useState('Cash');
+  const [paymentStatus, setPaymentStatus] = useState('Paid');
   const [balance, setBalance] = useState('0');
   const [branch, setBranch] = useState('Ahalia Central Laboratory');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [ipOp, setIpOp] = useState('AMCHO139086');
+  const [ipOp, setIpOp] = useState('');
   const [webCode, setWebCode] = useState('');
   const [emailedOn, setEmailedOn] = useState('');
-  const [regDate, setRegDate] = useState('27-04-2026 11:28 AM');
-  const [rPromiseTime, setRPromiseTime] = useState('27-04-2026 09:27 PM');
-  const [compiledTime, setCompiledTime] = useState('27-04-2026 03:08 PM');
+  const [regDate, setRegDate] = useState('');
+  const [rPromiseTime, setRPromiseTime] = useState('');
+  const [compiledTime, setCompiledTime] = useState('');
   const [regBy, setRegBy] = useState('silsa');
   const [reportStatus, setReportStatus] = useState('Finished');
 
-  const [tests, setTests] = useState([
-    { slNo: 4, isIssued: true, testName: 'URIC ACID', testType: 'General Test', print: true, printStatus: 'Printed', department: 'BIOCHEMISTRY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 5, isIssued: true, testName: 'CALCIUM', testType: 'General Test', print: true, printStatus: 'Printed', department: 'BIOCHEMISTRY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 6, isIssued: true, testName: 'CREATININE PHOSPHO KINASE (CPK)', testType: 'General Test', print: true, printStatus: 'Printed', department: 'BIOCHEMISTRY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 7, isIssued: true, testName: 'C REACTIVE PROTEIN (RCRP)', testType: 'General Test', print: true, printStatus: 'Printed', department: 'BIOCHEMISTRY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 8, isIssued: true, testName: 'VITAMIN D3 (25 Hydroxyvitamin D)', testType: 'General Test', print: true, printStatus: '', department: 'IMMUNOASSAY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 9, isIssued: true, testName: 'VITAMIN B12', testType: 'General Test', print: true, printStatus: '', department: 'IMMUNOASSAY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 10, isIssued: true, testName: 'THYROID STIMULATING HORMONE (T...', testType: 'General Test', print: true, printStatus: '', department: 'IMMUNOASSAY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 11, isIssued: true, testName: 'RHEUMATOID FACTOR. (RF)', testType: 'General Test', print: true, printStatus: 'Printed', department: 'SEROLOGY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-    { slNo: 12, isIssued: true, testName: 'ANTI STREPTOLYSIN O (ASO)', testType: 'General Test', print: true, printStatus: 'Printed', department: 'SEROLOGY', authUserInfo: 'SHAHSEENA 27-04-2026' },
-  ]);
+  const [tests, setTests] = useState([]);
+
+  useEffect(() => {
+    if (labOrder) {
+      setLabNo(labOrder.id || '');
+      setName(labOrder.patientName || '');
+      setAgeGender(labOrder.age ? `${labOrder.age} Years / ${labOrder.gender || 'M'}` : '35 Years / M');
+      setIpOp(labOrder.uhid || 'OP');
+      setRegDate(labOrder.timestamp || new Date().toLocaleString());
+      setCompiledTime(new Date().toLocaleString());
+      
+      if (labOrder.tests && labOrder.tests.length > 0) {
+        const mappedTests = labOrder.tests.map((t, idx) => ({
+          slNo: idx + 1,
+          isIssued: true,
+          testName: t.param,
+          testType: t.isDerived ? 'Derived Parameter' : 'Analytic Result',
+          print: true,
+          printStatus: 'Approved',
+          department: 'BIOCHEMISTRY',
+          authUserInfo: 'MD_PATHOLOGIST',
+          observedValue: t.result,
+          unit: t.unit,
+          refRange: `${t.min} - ${t.max}`,
+          flag: t.flag,
+          isAbnormal: !!t.flag
+        }));
+        setTests(mappedTests);
+      } else {
+        // Default mock parameters if tests array is missing
+        setTests([
+          { slNo: 1, isIssued: true, testName: labOrder.testName || 'General Wellness', testType: 'General Test', print: true, printStatus: 'Approved', department: 'PATHOLOGY', authUserInfo: 'MD_PATHOLOGIST', observedValue: 'Normal', unit: '', refRange: 'Stable', flag: '', isAbnormal: false }
+        ]);
+      }
+    } else {
+      // Clear fields for authentic blank layout
+      setLabNo('');
+      setName('');
+      setAgeGender('');
+      setIpOp('');
+      setRegDate('');
+      setCompiledTime('');
+      setTests([]);
+    }
+  }, [labOrder]);
 
   const [reportingModes, setReportingModes] = useState({
     personally: true, whatsapp: false, email: false, sms: false, courier: false, telephone: false, selectAll: false, printWithLetterHead: false
@@ -60,6 +96,68 @@ export default function LisResultIssuing({
     setShowPrintPreview(true);
   };
 
+  const handleFinished = () => {
+    if (setLabOrders && labOrder) {
+      setLabOrders(prev => prev.map(o => o.id === labOrder.id ? { ...o, status: 'Issued' } : o));
+      if (addNotification) addNotification("Report Issued", `Order ${labOrder.id} report issued successfully.`, "success");
+      if (setActiveIssuingOrder) setActiveIssuingOrder(null);
+    }
+  };
+
+  const handleExit = () => {
+    if (setActiveIssuingOrder) setActiveIssuingOrder(null);
+  };
+
+  const handleNew = () => {
+    if (setActiveIssuingOrder) setActiveIssuingOrder(null);
+  };
+
+  const handleBill = () => {
+    if (!labOrder) return;
+    if (addNotification) {
+      addNotification("Billing Receipt Issued", `Patient payment cleared. Balance: INR 0.00`, "success");
+    }
+  };
+
+  const handlePrevious = () => {
+    const authOrders = labOrders.filter(o => o.status === 'Authorized');
+    if (authOrders.length === 0) return;
+    const currentIndex = authOrders.findIndex(o => o.id === labOrder?.id);
+    if (currentIndex > 0) {
+      setActiveIssuingOrder(authOrders[currentIndex - 1]);
+    } else {
+      setActiveIssuingOrder(authOrders[authOrders.length - 1]);
+    }
+  };
+
+  const handleNext = () => {
+    const authOrders = labOrders.filter(o => o.status === 'Authorized');
+    if (authOrders.length === 0) return;
+    const currentIndex = authOrders.findIndex(o => o.id === labOrder?.id);
+    if (currentIndex !== -1 && currentIndex < authOrders.length - 1) {
+      setActiveIssuingOrder(authOrders[currentIndex + 1]);
+    } else {
+      setActiveIssuingOrder(authOrders[0]);
+    }
+  };
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter') {
+      const found = labOrders.find(o => o.id === labNo && o.status === 'Authorized');
+      if (found) {
+        setActiveIssuingOrder(found);
+        if (addNotification) addNotification("Order Loaded", `Lab No ${labNo} successfully retrieved.`, "success");
+      } else {
+        const existing = labOrders.find(o => o.id === labNo);
+        if (existing) {
+          if (addNotification) addNotification("Access Restricted", `Order ${labNo} is at: '${existing.status}'. Wait for Pathologist authorization.`, "error");
+        } else {
+          if (addNotification) addNotification("Query Failed", `Lab No ${labNo} could not be located in local directory.`, "error");
+        }
+      }
+    }
+  };
+
   return (
     <div className="glass-panel" style={{ padding: '0', borderRadius: '4px', border: '1px solid #99aab5', background: '#f0f4f8', fontFamily: 'Arial, sans-serif', color: '#333' }}>
       
@@ -79,11 +177,21 @@ export default function LisResultIssuing({
         {/* URL Bar Simulation */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center' }}>
           <label style={{ fontSize: '0.8rem', fontWeight: 'bold', width: '60px' }}>Lab No</label>
-          <input type="text" value={labNo} onChange={(e) => setLabNo(e.target.value)} style={{ padding: '4px', border: '1px solid #bdc3c7', width: '150px' }} />
+          <input 
+            type="text" 
+            value={labNo} 
+            onChange={(e) => setLabNo(e.target.value)} 
+            onKeyDown={handleSearch}
+            placeholder="Enter ID + Enter"
+            style={{ padding: '4px', border: '1px solid #bdc3c7', width: '150px' }} 
+          />
           <input type="text" readOnly value={`http://localhost:2002/TestPDFView/ResultPDF?lno=${labNo}`} style={{ padding: '4px', border: '1px solid #bdc3c7', flex: 1, background: '#e9ecef', color: '#666', fontSize: '0.75rem' }} />
-          <div style={{ background: '#34495e', color: 'white', padding: '4px 20px', fontWeight: 'bold', fontSize: '0.9rem' }}>
+          <button 
+            onClick={handleFinished} 
+            style={{ background: '#34495e', color: 'white', padding: '4px 20px', fontWeight: 'bold', fontSize: '0.9rem', border: 'none', cursor: 'pointer' }}
+          >
             Result Issuing
-          </div>
+          </button>
         </div>
 
         {/* Demographics Grid */}
@@ -214,7 +322,15 @@ export default function LisResultIssuing({
             {['New', 'Bill', 'Previous', 'Next', 'Print', 'Finished', 'Exit'].map(btn => (
               <button 
                 key={btn}
-                onClick={btn === 'Print' ? handlePrint : undefined}
+                onClick={
+                  btn === 'New' ? handleNew :
+                  btn === 'Bill' ? handleBill :
+                  btn === 'Previous' ? handlePrevious :
+                  btn === 'Next' ? handleNext :
+                  btn === 'Print' ? handlePrint : 
+                  btn === 'Finished' ? handleFinished : 
+                  btn === 'Exit' ? handleExit : undefined
+                }
                 style={{ 
                   background: 'linear-gradient(to bottom, #a0c4ff, #73a5ff)', 
                   border: '1px solid #5a8dec', 
@@ -287,22 +403,17 @@ export default function LisResultIssuing({
                   </thead>
                   <tbody>
                     {tests.filter(t => t.print).map((t, idx) => {
-                      // Generate some mock results based on the test name for the printout
-                      let result = 'Normal';
-                      let unit = '';
-                      let refRange = '';
-                      let isAbnormal = false;
-
-                      if (t.testName.includes('URIC ACID')) { result = '5.4'; unit = 'mg/dL'; refRange = '3.5 - 7.2'; }
-                      else if (t.testName.includes('CALCIUM')) { result = '8.9'; unit = 'mg/dL'; refRange = '9.0 - 10.5'; isAbnormal = true; }
-                      else if (t.testName.includes('C REACTIVE')) { result = '12.5'; unit = 'mg/L'; refRange = '< 6.0'; isAbnormal = true; }
-                      else { result = 'Done'; refRange = 'As per standard'; }
+                      const result = t.observedValue || 'Normal';
+                      const unit = t.unit || '';
+                      const refRange = t.refRange || '-';
+                      const isAbnormal = t.isAbnormal;
+                      const flag = t.flag;
 
                       return (
                         <tr key={idx} style={{ borderBottom: '1px dashed #eee' }}>
                           <td style={{ padding: '10px 8px', fontWeight: 'bold', color: '#2c3e50' }}>{t.testName}</td>
                           <td style={{ padding: '10px 8px', fontWeight: isAbnormal ? 'bold' : 'normal' }}>
-                            {result} {isAbnormal && <span style={{ color: '#e74c3c', fontWeight: 'bold' }}> {isAbnormal && result < parseFloat(refRange.split('-')[0]) ? '(L)' : '(H)'}</span>}
+                            {result} {isAbnormal && <span style={{ color: '#e74c3c', fontWeight: 'bold' }}> ({flag === 'CRITICAL' ? 'CRITICAL' : flag})</span>}
                           </td>
                           <td style={{ padding: '10px 8px', color: '#7f8c8d' }}>{unit}</td>
                           <td style={{ padding: '10px 8px' }}>{refRange}</td>

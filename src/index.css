@@ -207,6 +207,12 @@ body {
 }
 .btn-rose:hover { background: #0f172a; }
 
+.btn-purple {
+  background: var(--accent-purple);
+  color: #ffffff;
+}
+.btn-purple:hover { background: #7c3aed; }
+
 .btn-glass {
   background: transparent;
   border-color: transparent;
