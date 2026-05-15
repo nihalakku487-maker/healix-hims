@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BedDouble, CheckCircle, FileText, Plus, Search, AlertTriangle, User, Activity, ArrowRightLeft, LogOut, Clock } from 'lucide-react';
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 const WARD_STRUCTURE = {
   'General': ['G-01', 'G-02', 'G-03', 'G-04', 'G-05', 'G-06', 'G-07', 'G-08', 'G-09', 'G-10', 'G-11', 'G-12'],
@@ -143,9 +144,9 @@ export default function IpdModule({
       </div>
 
       {ipAdmSubTab === 'layout' && (
-        <div className="animate-slide-up" style={{ display: 'grid', gridTemplateColumns: selectedBedOccupant ? '2fr 1fr' : '1fr', gap: '20px', alignItems: 'start' }}>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <PanelGroup autoSaveId="ipd-layout" direction="horizontal" className="animate-slide-up" style={{ gap: '10px' }}>
+          <Panel defaultSize={selectedBedOccupant ? 65 : 100} minSize={50}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto', paddingRight: '10px' }}>
             {/* WARD SELECTION NAV */}
             <div className="glass-panel" style={{ padding: '12px', display: 'flex', gap: '10px', borderRadius: 'var(--radius-md)', overflowX: 'auto' }}>
               {Object.keys(WARD_STRUCTURE).map(ward => {
@@ -271,9 +272,15 @@ export default function IpdModule({
               </div>
             </div>
           </div>
+          </Panel>
 
           {/* OCCUPANT DETAILS SIDE PANEL */}
           {selectedBedOccupant && (
+            <>
+              <PanelResizeHandle className="ResizeHandleOuter">
+                <div className="ResizeHandleInner"></div>
+              </PanelResizeHandle>
+              <Panel defaultSize={35} minSize={25}>
             <div className="glass-panel animate-slide-left" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderColor: 'rgba(6, 182, 212, 0.4)', position: 'sticky', top: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                 <div>
@@ -332,10 +339,11 @@ export default function IpdModule({
                   </button>
                 </div>
               </div>
-            </div>
+            </Panel>
+            </>
           )}
 
-        </div>
+        </PanelGroup>
       )}
 
       {ipAdmSubTab === 'list' && (

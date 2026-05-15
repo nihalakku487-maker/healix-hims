@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Ticket, Users, CheckCircle, Stethoscope,
-  Activity, Search, HeartPulse, X
+  Activity, Search, HeartPulse, X, FileText, Plus, Clipboard, Pill, TestTube, Save, Send, AlertCircle
 } from 'lucide-react';
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import PostConsultationActions from './PostConsultationActions';
 import ClinicalOrdersPanel from './ClinicalOrdersPanel';
 
@@ -211,124 +212,132 @@ export default function OpdModule({
       {/* ═══ EMR CONSULTATION VIEW ═══ */}
       {opQueueSubTab === 'consult' && selectedConsultToken && (
         <div className="animate-slide-up">
-          <form style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
-
-            {/* ─── LEFT: CLINICAL DOCUMENTATION ─── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: '1 1 500px', minWidth: 0 }}>
-
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderLeft: '4px solid var(--accent-cyan)' }}>
-                {/* Patient Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                  <div>
-                    <h2 style={{ fontSize: '1.6rem', fontWeight: '800' }}>{selectedConsultToken.name}</h2>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>
-                      {selectedConsultToken.uhid} • {selectedConsultToken.gender}, {selectedConsultToken.age} Years • Dr. {selectedConsultToken.doctor}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <span className="badge badge-emerald" style={{ padding: '8px 16px', fontSize: '0.9rem', fontWeight: '900' }}>
-                      TOKEN: {selectedConsultToken.tokenNo}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Vitals */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-                    {[
-                      { label: 'BP (mmHg)', placeholder: '120/80', icon: <Activity size={12}/> },
-                      { label: 'Pulse (bpm)', placeholder: '78',    icon: <HeartPulse size={12}/> },
-                      { label: 'SpO2 (%)',   placeholder: '98%',    icon: null },
-                      { label: 'Temp (°F)',  placeholder: '98.6',   icon: null }
-                    ].map(v => (
-                      <div key={v.label} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          {v.icon}{v.label}
-                        </span>
-                        <input type="text" placeholder={v.placeholder} className="form-control"
-                          style={{ background: 'transparent', border: 'none', padding: '4px 0', fontSize: '1rem', fontWeight: '700' }} />
+          <form style={{ height: '100%' }}>
+            <PanelGroup autoSaveId="opd-consult" direction="horizontal" style={{ gap: '10px' }}>
+              
+              {/* LEFT: CLINICAL DOCUMENTATION */}
+              <Panel defaultSize={60} minSize={40}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto', paddingRight: '10px' }}>
+              
+                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderLeft: '4px solid var(--accent-cyan)' }}>
+                    {/* Patient Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+                      <div>
+                        <h2 style={{ fontSize: '1.6rem', fontWeight: '800' }}>{selectedConsultToken.name}</h2>
+                        <p style={{ fontSize: '0.9rem', color: 'var(--accent-cyan)' }}>
+                          {selectedConsultToken.uhid} • {selectedConsultToken.gender}, {selectedConsultToken.age} Years • Dr. {selectedConsultToken.doctor}
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span className="badge badge-emerald" style={{ padding: '8px 16px', fontSize: '0.9rem', fontWeight: '900' }}>
+                          TOKEN: {selectedConsultToken.tokenNo}
+                        </span>
+                      </div>
+                    </div>
 
-                  {/* Chief Complaints */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
-                      Chief Complaints (HPI)
-                    </label>
-                    <textarea
-                      placeholder="Patient presents with..."
-                      className="form-control"
-                      style={{ width: '100%', minHeight: '80px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
-                      value={consultChiefComplaint}
-                      onChange={e => setConsultChiefComplaint(e.target.value)}
-                    />
-                  </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {/* Vitals */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                        {[
+                          { label: 'BP (mmHg)', placeholder: '120/80', icon: <Activity size={12}/> },
+                          { label: 'Pulse (bpm)', placeholder: '78',    icon: <HeartPulse size={12}/> },
+                          { label: 'SpO2 (%)',   placeholder: '98%',    icon: null },
+                          { label: 'Temp (°F)',  placeholder: '98.6',   icon: null }
+                        ].map(v => (
+                          <div key={v.label} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              {v.icon}{v.label}
+                            </span>
+                            <input type="text" placeholder={v.placeholder} className="form-control"
+                              style={{ background: 'transparent', border: 'none', padding: '4px 0', fontSize: '1rem', fontWeight: '700' }} />
+                          </div>
+                        ))}
+                      </div>
 
-                  {/* ICD-10 Diagnosis */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: 'var(--accent-amber)' }}>
-                      Provisional Diagnosis (ICD-10)
-                    </label>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <input
-                        type="text"
-                        placeholder="Search disease or enter ICD-10 code..."
-                        className="form-control"
-                        style={{ flex: 1, height: '42px', background: 'rgba(0,0,0,0.2)' }}
-                        value={consultDiagnosis}
-                        onChange={e => setConsultDiagnosis(e.target.value)}
-                      />
-                      <button type="button" className="btn btn-glass"><Search size={16}/></button>
+                      {/* Chief Complaints */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+                          Chief Complaints (HPI)
+                        </label>
+                        <textarea
+                          placeholder="Patient presents with..."
+                          className="form-control"
+                          style={{ width: '100%', minHeight: '80px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
+                          value={consultChiefComplaint}
+                          onChange={e => setConsultChiefComplaint(e.target.value)}
+                        />
+                      </div>
+
+                      {/* ICD-10 Diagnosis */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px', color: 'var(--accent-amber)' }}>
+                          Provisional Diagnosis (ICD-10)
+                        </label>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <input
+                            type="text"
+                            placeholder="Search disease or enter ICD-10 code..."
+                            className="form-control"
+                            style={{ flex: 1, height: '42px', background: 'rgba(0,0,0,0.2)' }}
+                            value={consultDiagnosis}
+                            onChange={e => setConsultDiagnosis(e.target.value)}
+                          />
+                          <button type="button" className="btn btn-glass"><Search size={16}/></button>
+                        </div>
+                      </div>
+
+                      {/* Clinical Notes */}
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
+                          Clinical Notes &amp; Plan
+                        </label>
+                        <textarea
+                          placeholder="Internal remarks and treatment plan..."
+                          className="form-control"
+                          style={{ width: '100%', minHeight: '80px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
+                          value={consultNotes}
+                          onChange={e => setConsultNotes(e.target.value)}
+                        />
+                      </div>
                     </div>
                   </div>
+                </div>
+              </Panel>
 
-                  {/* Clinical Notes */}
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '700', marginBottom: '6px' }}>
-                      Clinical Notes &amp; Plan
-                    </label>
-                    <textarea
-                      placeholder="Internal remarks and treatment plan..."
-                      className="form-control"
-                      style={{ width: '100%', minHeight: '80px', background: 'rgba(0,0,0,0.2)', padding: '12px' }}
-                      value={consultNotes}
-                      onChange={e => setConsultNotes(e.target.value)}
-                    />
+              <PanelResizeHandle className="ResizeHandleOuter">
+                <div className="ResizeHandleInner"></div>
+              </PanelResizeHandle>
+
+              {/* RIGHT: CLINICAL ACTION ORDERS + DISPOSITION */}
+              <Panel defaultSize={40} minSize={30}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto', paddingLeft: '10px' }}>
+                  
+                  <ClinicalOrdersPanel
+                    patient={selectedConsultToken}
+                    addNotification={addNotification}
+                    handlePostCharge={handlePostCharge}
+                    setLabOrders={setLabOrders}
+                    setRadiologyOrders={setRadiologyOrders}
+                    setPharmacyOrders={setPharmacyOrders}
+                    setNursingOrders={setNursingOrders}
+                    setIpAdmissions={setIpAdmissions}
+                    setOpQueue={setOpQueue}
+                  />
+
+                  {/* ══ DISPOSITION ══ */}
+                  <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', background: 'rgba(6,182,212,0.05)', marginTop: 'auto' }}>
+                    <button
+                      type="button"
+                      onClick={handleCompleteConsultation}
+                      className="btn btn-cyan"
+                      style={{ width: '100%', height: '50px', fontWeight: '800', fontSize: '1rem', gap: '8px' }}
+                    >
+                      <CheckCircle size={18} /> Complete Consult &amp; Discharge
+                    </button>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* ─── RIGHT: CLINICAL ACTION ORDERS + DISPOSITION ─── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: '1 1 400px', minWidth: 0 }}>
-
-              {/* ══ CLINICAL ACTION ORDERS (unified ordering panel) ══ */}
-              <ClinicalOrdersPanel
-                patient={selectedConsultToken}
-                addNotification={addNotification}
-                handlePostCharge={handlePostCharge}
-                setLabOrders={setLabOrders}
-                setRadiologyOrders={setRadiologyOrders}
-                setPharmacyOrders={setPharmacyOrders}
-                setNursingOrders={setNursingOrders}
-                setIpAdmissions={setIpAdmissions}
-                setOpQueue={setOpQueue}
-              />
-
-              {/* ══ DISPOSITION ══ */}
-              <div className="glass-panel" style={{ padding: '20px', borderRadius: 'var(--radius-lg)', background: 'rgba(6,182,212,0.05)', marginTop: 'auto' }}>
-                <button
-                  type="button"
-                  onClick={handleCompleteConsultation}
-                  className="btn btn-cyan"
-                  style={{ width: '100%', height: '50px', fontWeight: '800', fontSize: '1rem', gap: '8px' }}
-                >
-                  <CheckCircle size={18} /> Complete Consult &amp; Discharge
-                </button>
-              </div>
-
-            </div>
+              </Panel>
+            </PanelGroup>
           </form>
         </div>
       )}

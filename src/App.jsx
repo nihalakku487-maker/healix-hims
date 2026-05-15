@@ -16,6 +16,7 @@ import InsuranceModule from './components/InsuranceModule';
 import HealthPackageModule from './components/HealthPackageModule';
 import ReferralModule from './components/ReferralModule';
 import LisModule from './components/LisModule';
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 // Custom Hooks
 import { useBarcodeScanner } from './hooks/useBarcodeScanner';
@@ -183,8 +184,27 @@ export default function App() {
   const [labBookingGlobalDiscount, setLabBookingGlobalDiscount] = useState(0);
 
   const [labOrders, setLabOrders] = useState([
-    { id: "LAB-101", uhid: "UHID-9844", patientName: "Sunil Kumar", testName: "Complete Blood Count (CBC)", status: "Pending", timestamp: "Today, 11:15 AM" },
-    { id: "LAB-102", uhid: "UHID-2104", patientName: "Anjali Sharma", testName: "Liver Function Test (LFT)", status: "Pending", timestamp: "Today, 11:30 AM" }
+    { 
+      id: "LAB-101", uhid: "UHID-9844", patientName: "Sunil Kumar", dob: "1984-06-15", 
+      testName: "Complete Blood Count (CBC)", status: "Sample Pending", timestamp: "Today, 11:15 AM", 
+      verificationStatus: "Not Verified", consentGiven: true, isPediatric: false, hasLatexAllergy: true, hasDifficultVein: false, isIsolationRequired: false,
+      statusHistory: [{ status: 'Order Registered', timestamp: '11:15 AM', user: 'SYS_OPD' }],
+      sampleVolume: 5.0, addonTests: []
+    },
+    { 
+      id: "LAB-102", uhid: "UHID-2104", patientName: "Anjali Sharma", dob: "1997-11-22", 
+      testName: "Liver Function Test (LFT)", status: "Sample Pending", timestamp: "Today, 11:30 AM", 
+      verificationStatus: "Not Verified", consentGiven: true, isPediatric: false, hasLatexAllergy: false, hasDifficultVein: true, isIsolationRequired: true, isolationType: "Contact",
+      statusHistory: [{ status: 'Order Registered', timestamp: '11:30 AM', user: 'SYS_IPD' }],
+      sampleVolume: 5.0, addonTests: []
+    },
+    { 
+      id: "LAB-103", uhid: "UHID-7812", patientName: "Rahul Roy", dob: "2015-03-12", 
+      testName: "Lipid Profile (Full)", status: "Sample Pending", timestamp: "Today, 11:45 AM", 
+      verificationStatus: "Not Verified", consentGiven: false, isPediatric: true, hasLatexAllergy: false, hasDifficultVein: false, isIsolationRequired: false,
+      statusHistory: [{ status: 'Order Registered', timestamp: '11:45 AM', user: 'SYS_OPD' }],
+      sampleVolume: 5.0, addonTests: []
+    }
   ]);
   const [pharmacyOrders, setPharmacyOrders] = useState([
     { id: "RX-810", uhid: "UHID-2087", patientName: "Kiran", medicines: "Pantocid D 40mg x5, Paracetamol 650mg x10", status: "Pending", timestamp: "Today, 09:05 PM" },
@@ -912,10 +932,11 @@ export default function App() {
       )}
 
       {/* ================= MAIN CONTENT LAYOUT ================= */}
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '20px', alignItems: 'start' }}>
+      <PanelGroup autoSaveId="healix-layout" direction="horizontal" style={{ gap: '10px', alignItems: 'start' }}>
         
         {/* SIDE NAV MENU */}
-        <aside className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', borderRadius: 'var(--radius-lg)' }}>
+        <Panel defaultSize={20} minSize={15} maxSize={35}>
+          <aside className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', borderRadius: 'var(--radius-lg)', height: '100%', overflowY: 'auto' }}>
           <div style={{ padding: '4px 8px 12px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px' }}>
             <span className="mediq-subtitle" style={{ color: 'var(--accent-cyan)' }}>ACTIVE PRIVILEGE</span>
             <strong style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: '4px', fontFamily: 'var(--font-sans)', fontWeight: '700' }}>
@@ -1074,10 +1095,16 @@ export default function App() {
               <span style={{ fontWeight: '700', color: 'var(--accent-amber)' }}>{patients.filter(p => p.type === 'IP').length} / 12</span>
             </div>
           </div>
-        </aside>
+          </aside>
+        </Panel>
+
+        <PanelResizeHandle className="ResizeHandleOuter">
+          <div className="ResizeHandleInner"></div>
+        </PanelResizeHandle>
 
         {/* WORKSPACE VIEWPORT */}
-        <main style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <Panel>
+          <main style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto', paddingRight: '10px' }}>
           
           {/* SEARCH & FILTERS FOR WORKSPACE */}
           <div className="glass-panel" style={{ display: 'flex', gap: '12px', padding: '12px 16px', borderRadius: 'var(--radius-md)', alignItems: 'center' }}>
@@ -1987,10 +2014,11 @@ export default function App() {
                 </div>
 
                 {pharmacySubTab === 'dispensation' && (
-                  <div className="animate-slide-up" style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', alignItems: 'start' }}>
-                  
+                  <PanelGroup autoSaveId="pharmacy-layout" direction="horizontal" className="animate-slide-up" style={{ gap: '10px' }}>
+                    
                   {/* LEFT PANE: PRESCRIPTION QUEUE */}
-                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Panel defaultSize={35} minSize={25}>
+                    <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', overflowY: 'auto' }}>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
@@ -2101,9 +2129,15 @@ export default function App() {
                       )}
                     </div>
                   </div>
+                  </Panel>
+
+                  <PanelResizeHandle className="ResizeHandleOuter">
+                    <div className="ResizeHandleInner"></div>
+                  </PanelResizeHandle>
 
                   {/* MIDDLE PANE: CLINICAL DISPENSATION WORKSTATION */}
-                  <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <Panel defaultSize={65} minSize={40}>
+                    <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto' }}>
                     {activeOrder ? (
                       <>
                         <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2658,8 +2692,8 @@ export default function App() {
                     </table>
                   )}
                 </div>
-              </div>
-            </div>
+              </Panel>
+            </PanelGroup>
           )}
 
           {/* ================= TAB CONTENT: CENTRAL STOCK INVENTORY ================= */}
@@ -3823,8 +3857,9 @@ export default function App() {
             </div>
           )}
 
-        </main>
-      </div>
+          </main>
+        </Panel>
+      </PanelGroup>
 
       {/* ============================================= */}
       {/* 🔥 EMERGENCY INTERCEPT OVERLAY (GLOBAL)        */}

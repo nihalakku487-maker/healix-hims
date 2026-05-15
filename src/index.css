@@ -294,3 +294,28 @@ table th {
   animation: slideInUp 0.3s ease forwards;
 }
 
+/* React Resizable Panels Handle */
+.ResizeHandleOuter {
+  flex: 0 0 10px;
+  outline: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 5px;
+  cursor: col-resize;
+  transition: all var(--transition-fast);
+}
+
+.ResizeHandleOuter:hover .ResizeHandleInner,
+.ResizeHandleOuter[data-resize-handle-active] .ResizeHandleInner {
+  background-color: var(--accent-blue);
+}
+
+.ResizeHandleInner {
+  width: 4px;
+  height: 30px;
+  background-color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
