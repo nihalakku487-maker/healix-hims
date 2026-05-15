@@ -339,9 +339,10 @@ export default function IpdModule({
                   </button>
                 </div>
               </div>
-            </Panel>
-            </>
-          )}
+            </div>
+          </Panel>
+        </>
+      )}
 
         </PanelGroup>
       )}
