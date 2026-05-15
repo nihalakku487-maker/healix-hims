@@ -190,6 +190,7 @@ export default function App() {
     { id: "RX-810", uhid: "UHID-2087", patientName: "Kiran", medicines: "Pantocid D 40mg x5, Paracetamol 650mg x10", status: "Pending", timestamp: "Today, 09:05 PM" },
     { id: "RX-201", uhid: "UHID-2104", patientName: "Anjali Sharma", medicines: "Paracetamol 650mg x10, Amoxicillin 500mg x6", status: "Pending", timestamp: "Today, 11:05 AM" }
   ]);
+  const [nursingOrders, setNursingOrders] = useState([]);
   const [selectedPharmacyId, setSelectedPharmacyId] = useState("RX-810");
 
   const [pharmacySearch, setPharmacySearch] = useState('');
@@ -2524,6 +2525,70 @@ export default function App() {
                 </div>
               </div>
 
+              {/* ─── NURSING ORDERS (dispatched from Doctor EMR) ─── */}
+              {nursingOrders.length > 0 && (
+                <div className="glass-panel" style={{ padding: '24px', borderRadius: 'var(--radius-lg)', borderLeft: '4px solid #8b5cf6' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '800', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: '#8b5cf6' }}>
+                    🩹 Nursing Task Queue
+                    <span style={{ background: '#8b5cf6', color: '#fff', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>
+                      {nursingOrders.filter(o => o.status === 'Pending').length} Pending
+                    </span>
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {nursingOrders.map(order => (
+                      <div key={order.id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '14px 18px', background: '#fafafa', border: '1px solid #f1f5f9',
+                        borderRadius: '10px', flexWrap: 'wrap', gap: '10px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{
+                            padding: '3px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '700',
+                            background: order.priority === 'Emergency' ? '#fee2e2' : order.priority === 'Urgent' ? '#fef3c7' : '#f0fdf4',
+                            color: order.priority === 'Emergency' ? '#b91c1c' : order.priority === 'Urgent' ? '#92400e' : '#065f46'
+                          }}>
+                            {order.priority || 'Normal'}
+                          </span>
+                          <div>
+                            <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1e293b' }}>{order.procedure}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                              {order.patientName} • {order.uhid} • {order.doctor || 'Doctor'} • {order.queueToken}
+                            </div>
+                            {order.instructions && (
+                              <div style={{ fontSize: '0.72rem', color: '#475569', fontStyle: 'italic', marginTop: '2px' }}>
+                                📋 {order.instructions}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{
+                            padding: '4px 12px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: '700',
+                            background: order.status === 'Completed' ? '#d1fae5' : order.status === 'In Progress' ? '#ede9fe' : '#fef3c7',
+                            color: order.status === 'Completed' ? '#065f46' : order.status === 'In Progress' ? '#5b21b6' : '#92400e'
+                          }}>
+                            {order.status || 'Pending'}
+                          </span>
+                          {order.status !== 'Completed' && (
+                            <button
+                              onClick={() => setNursingOrders(prev => prev.map(o => o.id === order.id ? {
+                                ...o, status: o.status === 'Pending' ? 'In Progress' : 'Completed'
+                              } : o))}
+                              style={{
+                                padding: '5px 12px', border: 'none', borderRadius: '6px', fontSize: '0.72rem',
+                                fontWeight: '700', cursor: 'pointer', background: '#8b5cf6', color: '#fff'
+                              }}
+                            >
+                              {order.status === 'Pending' ? 'Accept' : 'Mark Done'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -3426,6 +3491,8 @@ export default function App() {
               consultPrescription={consultPrescription} setConsultPrescription={setConsultPrescription}
               addNotification={addNotification} handlePostCharge={handlePostCharge}
               setLabOrders={setLabOrders} setRadiologyOrders={setRadiologyOrders} setPharmacyOrders={setPharmacyOrders}
+              setNursingOrders={setNursingOrders}
+              setIpAdmissions={setIpAdmissions}
               setActiveTab={setActiveTab}
             />
           )}
