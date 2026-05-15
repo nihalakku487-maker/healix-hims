@@ -1151,7 +1151,8 @@ export default function LisModule({
                     style={{ width: '100%', padding: '7px 8px', border: `1px solid ${lisTheme.borderColor}`, borderRadius: '4px', fontSize: lisTheme.fontSize, resize: 'vertical', fontFamily: lisTheme.fontFamily }} />
                 </div>
               </div>
-            </Panel>
+            </div>
+          </Panel>
 
             <PanelResizeHandle className="ResizeHandleOuter">
               <div className="ResizeHandleInner"></div>
@@ -1339,7 +1340,6 @@ export default function LisModule({
               </div>
             )}
 
-              </div>
             </Panel>
           </PanelGroup>
           );
