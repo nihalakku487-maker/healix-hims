@@ -2346,9 +2346,9 @@ export default function App() {
                       <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', textAlign: 'center', padding: '48px' }}>Please select an indent from the left queue to inspect.</p>
                     )}
                   </div>
-
-                  </div>
-                )}
+                </Panel>
+              </PanelGroup>
+            )}
 
                 {pharmacySubTab === 'stock' && (
                   <div className="glass-panel animate-slide-up" style={{ padding: '32px', borderRadius: 'var(--radius-lg)', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -2692,8 +2692,8 @@ export default function App() {
                     </table>
                   )}
                 </div>
-              </Panel>
-            </PanelGroup>
+              </div>
+            </div>
           )}
 
           {/* ================= TAB CONTENT: CENTRAL STOCK INVENTORY ================= */}
